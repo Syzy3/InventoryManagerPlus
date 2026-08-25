@@ -1,0 +1,75 @@
+plugins {
+	// Minecraft 26.1+ is unobfuscated, so the *non-remapping* Loom plugin is used.
+	// Do NOT use 'fabric-loom' or 'net.fabricmc.fabric-loom-remap' here.
+	id 'net.fabricmc.fabric-loom' version "${loom_version}"
+	id 'maven-publish'
+}
+
+version = project.mod_version
+group = project.maven_group
+
+base {
+	archivesName = project.archives_base_name
+}
+
+repositories {
+	mavenCentral()
+	maven { url = "https://maven.fabricmc.net/" }
+	maven { url = "https://api.modrinth.com/maven" }
+}
+
+loom {
+	mods {
+		"inventory-manager-plus" {
+			sourceSet sourceSets.main
+		}
+	}
+}
+
+dependencies {
+	minecraft "com.mojang:minecraft:${project.minecraft_version}"
+
+	// NOTE: plain `implementation`, not `modImplementation`.
+	// Since 26.1 nothing is remapped, so the mod-specific configurations are gone.
+	implementation "net.fabricmc:fabric-loader:${project.loader_version}"
+	implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
+
+	implementation "maven.modrinth:modmenu:20.0.1"
+}
+
+processResources {
+	def v = project.version
+	inputs.property "version", v
+	filesMatching("fabric.mod.json") {
+		expand "version": v
+	}
+}
+
+tasks.withType(JavaCompile).configureEach {
+	it.options.release = 25
+	it.options.encoding = "UTF-8"
+}
+
+java {
+	withSourcesJar()
+	sourceCompatibility = JavaVersion.VERSION_25
+	targetCompatibility = JavaVersion.VERSION_25
+}
+
+// `jar` is the publishable artifact now; `remapJar` no longer exists.
+jar {
+	def projectName = project.name
+	inputs.property "projectName", projectName
+	from("LICENSE") {
+		rename { "${it}_$projectName" }
+	}
+}
+
+publishing {
+	publications {
+		create("mavenJava", MavenPublication) {
+			from components.java
+		}
+	}
+	repositories {}
+}

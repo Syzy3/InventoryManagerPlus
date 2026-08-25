@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "id": "inventory-manager-plus",
+  "version": "${version}",
+  "name": "Inventory Manager+",
+  "description": "Save inventory layouts as presets and apply them with one click. Never drops or deletes items.",
+  "authors": [
+    "Syzy3"
+  ],
+  "license": "ARR",
+  "environment": "client",
+  "icon": "assets/inventory-manager-plus/textures/gui/sprites/icon.png",
+  "entrypoints": {
+    "client": [
+      "dev.inventorymanagerplus.InventoryManagerPlus"
+    ],
+    "modmenu": [
+      "dev.inventorymanagerplus.ModMenuIntegration"
+    ]
+  },
+  "depends": {
+    "fabricloader": ">=0.19.3",
+    "minecraft": "~26.2",
+    "java": ">=25",
+    "fabric-api": "*"
+  }
+}
