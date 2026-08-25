@@ -384,7 +384,10 @@ public final class PresetEditorScreen extends Screen {
             graphics.fill(p[0] + 6, p[1] + 6, p[0] + 10, p[1] + 10, 0xFF8899AA);
             return;
         }
-        Render.itemWithCount(graphics, this.font, presetStack(index), p[0], p[1]);
+        // Slots are SLOT px on a side; a 16px icon sits one pixel in from each edge, the way
+        // vanilla insets item icons inside their 18px slot frames.
+        int inset = (SLOT - 16) / 2;
+        Render.itemWithCount(graphics, this.font, presetStack(index), p[0] + inset, p[1] + inset);
     }
 
     private ItemStack presetStack(int index) {
