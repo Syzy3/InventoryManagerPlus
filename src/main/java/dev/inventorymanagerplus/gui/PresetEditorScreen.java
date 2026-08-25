@@ -46,7 +46,7 @@ public final class PresetEditorScreen extends Screen {
         }
     }
 
-    private static final int SLOT = 18;
+    private static final int SLOT = 20;
     /** Armour drawn helmet-first, left to right, which is the order players think in. */
     private static final int[] ARMOR_DISPLAY_ORDER = {39, 38, 37, 36};
 
@@ -122,7 +122,7 @@ public final class PresetEditorScreen extends Screen {
         addRenderableWidget(Button.builder(Component.empty(), b -> {
             handleSlotClick(index);
             rebuild();
-        }).bounds(p[0], p[1], 16, 16).build());
+        }).bounds(p[0], p[1], Render.SLOT_INNER, Render.SLOT_INNER).build());
     }
 
     private void rebuild() {
@@ -260,7 +260,8 @@ public final class PresetEditorScreen extends Screen {
             if (p == null) {
                 continue;
             }
-            if (mouseX >= p[0] && mouseX < p[0] + 16 && mouseY >= p[1] && mouseY < p[1] + 16) {
+            if (mouseX >= p[0] && mouseX < p[0] + Render.SLOT_INNER
+                    && mouseY >= p[1] && mouseY < p[1] + Render.SLOT_INNER) {
                 return index;
             }
         }
@@ -326,10 +327,6 @@ public final class PresetEditorScreen extends Screen {
         int captureBottom = gridTop + 3 * SLOT + 8 + SLOT + 16 + 20;
         int hintY = (captureBottom + (this.height - 28)) / 2 - 4;
 
-        graphics.text(this.font,
-                "Slots you never touch stay unmanaged — the preset leaves whatever is in them alone.",
-                this.width / 2 - 190, hintY, 0xFF7A7F85, false);
-
         drawHoverTooltip(graphics, mouseX, mouseY);
     }
 
@@ -384,9 +381,8 @@ public final class PresetEditorScreen extends Screen {
             graphics.fill(p[0] + 6, p[1] + 6, p[0] + 10, p[1] + 10, 0xFF8899AA);
             return;
         }
-        // Slots are SLOT px on a side; a 16px icon sits one pixel in from each edge, the way
-        // vanilla insets item icons inside their 18px slot frames.
-        int inset = (SLOT - 16) / 2;
+        // Centre the 16px icon inside the slot interior, leaving vanilla's 1px margin.
+        int inset = (Render.SLOT_INNER - 16) / 2;
         Render.itemWithCount(graphics, this.font, presetStack(index), p[0] + inset, p[1] + inset);
     }
 

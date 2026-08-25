@@ -81,10 +81,19 @@ public final class Render {
     // ---- verified helpers -------------------------------------------------------------------
     // fill / outline / text are confirmed against the 26.2 Fabric docs.
 
-    /** A 16x16 inventory-style slot with a hover highlight. */
+    /** Interior size of a slot. A 16px icon sits inside with a 1px margin, as vanilla does. */
+    public static final int SLOT_INNER = 18;
+
+    /**
+     * An inventory-style slot with a hover highlight.
+     *
+     * <p>The interior is {@link #SLOT_INNER} px, not 16. A 16px icon drawn in a 16px box touches
+     * all four edges — and item sprites like swords run corner to corner — so the icon reads as
+     * overflowing its frame. Vanilla leaves a pixel of margin; so does this.
+     */
     public static void slotBackground(GuiGraphicsExtractor g, int x, int y, boolean hovered, boolean managed) {
         int base = managed ? 0xFF3A4A63 : 0xFF2B2B2B;
-        g.fill(x, y, x + 16, y + 16, hovered ? 0xFF5A7099 : base);
-        g.outline(x - 1, y - 1, 18, 18, 0xFF101010);
+        g.fill(x, y, x + SLOT_INNER, y + SLOT_INNER, hovered ? 0xFF5A7099 : base);
+        g.outline(x - 1, y - 1, SLOT_INNER + 2, SLOT_INNER + 2, 0xFF101010);
     }
 }
