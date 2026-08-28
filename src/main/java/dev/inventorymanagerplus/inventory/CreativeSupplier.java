@@ -82,9 +82,9 @@ public final class CreativeSupplier {
                 continue;
             }
 
-            // With drop-items on, the preset's slot is taken directly; whatever was there is gone.
-            // Without it, acquisition works around occupied slots and may leave the preset partial.
-            int writeSlot = Config.get().creativeDropItems ? target : pickWritableSlot(snapshot, preset, target);
+            // Acquisition works around whatever is already sitting in the slot, so a preset may
+            // come out partial rather than take a slot by force.
+            int writeSlot = pickWritableSlot(snapshot, preset, target);
             if (writeSlot < 0) {
                 continue;
             }
@@ -146,6 +146,11 @@ public final class CreativeSupplier {
     }
 
     private static ItemStack buildStack(Item item, PresetSlot spec, HolderLookup.Provider registries) {
+        // Category slots have no single item to create — "any block" could be a thousand things —
+        // so they are reported unfilled rather than guessed at.
+        if (spec.isCategory()) {
+            return ItemStack.EMPTY;
+        }
         ItemStack stack = new ItemStack(item, Math.max(1, spec.count()));
         if (spec.rawComponents() != null && registries != null) {
             var ops = RegistryOps.create(JsonOps.INSTANCE, registries);

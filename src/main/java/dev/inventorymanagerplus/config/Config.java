@@ -54,13 +54,6 @@ public final class Config {
     public boolean creativeAcquisition = false;
 
     /**
-     * In Creative, let acquisition overwrite whatever is sitting in a preset slot instead of
-     * working around it. This is the only setting in the mod that destroys items, so it is
-     * Creative-only, limited to slots the preset explicitly manages, and off by default.
-     */
-    public boolean creativeDropItems = false;
-
-    /**
      * Pause all inventory activity while any screen is open, including the player's own inventory.
      *
      * <p>This is what lets you rearrange things by hand without Auto Sort undoing the work as you

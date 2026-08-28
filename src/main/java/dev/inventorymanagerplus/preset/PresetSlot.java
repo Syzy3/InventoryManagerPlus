@@ -28,7 +28,7 @@ import java.util.Optional;
 public final class PresetSlot {
 
     /** Marker meaning "the player wants this slot left empty". */
-    private static final PresetSlot BLANK = new PresetSlot(null, 0, null, null);
+    private static final PresetSlot BLANK = new PresetSlot(null, 0, null, null, null);
 
     private final Identifier itemId;
     private final int count;
@@ -36,13 +36,16 @@ public final class PresetSlot {
     private final JsonElement components;
     /** Enchantment condition, applied in both match modes. Never null. */
     private final EnchantRequirement enchants;
+    /** When set, the slot accepts any item of this category and {@link #itemId} is only a hint. */
+    private final ItemCategory category;
 
     private PresetSlot(Identifier itemId, int count, JsonElement components,
-                       EnchantRequirement enchants) {
+                       EnchantRequirement enchants, ItemCategory category) {
         this.itemId = itemId;
         this.count = count;
         this.components = components;
         this.enchants = enchants == null ? EnchantRequirement.ignore() : enchants;
+        this.category = category;
     }
 
     public static PresetSlot blank() {
@@ -50,22 +53,47 @@ public final class PresetSlot {
     }
 
     public static PresetSlot of(Identifier itemId, int count, JsonElement components) {
-        return new PresetSlot(itemId, Math.max(1, count), components, null);
+        return new PresetSlot(itemId, Math.max(1, count), components, null, null);
     }
 
     public static PresetSlot of(Identifier itemId, int count, JsonElement components,
                                 EnchantRequirement enchants) {
-        return new PresetSlot(itemId, Math.max(1, count), components, enchants);
+        return new PresetSlot(itemId, Math.max(1, count), components, enchants, null);
+    }
+
+    /**
+     * A slot that accepts any item of a category.
+     *
+     * <p>No enchantment condition: the enchantment picker needs a specific item to know which
+     * enchantments are valid, and "any weapon with Sharpness" would have to mean something
+     * different for a bow than for a sword.
+     */
+    public static PresetSlot ofCategory(ItemCategory category) {
+        return new PresetSlot(null, 1, null, null, category);
     }
 
     /** Same item and count, with a different enchantment condition. */
     public PresetSlot withEnchants(EnchantRequirement req) {
-        return new PresetSlot(itemId, count, components, req);
+        return new PresetSlot(itemId, count, components, req, category);
     }
 
-    /** True when the player explicitly asked for this slot to hold nothing. */
+    public ItemCategory category() {
+        return category;
+    }
+
+    public boolean isCategory() {
+        return category != null;
+    }
+
+    /**
+     * True when the player explicitly asked for this slot to hold nothing.
+     *
+     * <p>A category slot also has no item id — it asks for a kind of item, not a specific one —
+     * so it must be excluded here, or it reads as an intentional blank everywhere blankness is
+     * checked: drawing, matching, and the preset summary.
+     */
     public boolean isBlank() {
-        return itemId == null;
+        return itemId == null && category == null;
     }
 
     public Identifier itemId() {
@@ -108,6 +136,9 @@ public final class PresetSlot {
         if (!enchants.isNoop()) {
             o.add("enchants", enchants.toJson());
         }
+        if (category != null) {
+            o.addProperty("category", category.name());
+        }
         return o;
     }
 
@@ -127,6 +158,12 @@ public final class PresetSlot {
         EnchantRequirement req = o.has("enchants") && o.get("enchants").isJsonObject()
                 ? EnchantRequirement.fromJson(o.getAsJsonObject("enchants"))
                 : EnchantRequirement.ignore();
+        ItemCategory cat = o.has("category")
+                ? ItemCategory.byName(o.get("category").getAsString())
+                : null;
+        if (cat != null) {
+            return ofCategory(cat);
+        }
         return of(id, c, comps, req);
     }
 }

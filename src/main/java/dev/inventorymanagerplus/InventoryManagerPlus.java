@@ -47,10 +47,9 @@ public final class InventoryManagerPlus implements ClientModInitializer {
     public void onInitializeClient() {
         Storage.loadConfig();
 
-        // Both of these spend resources or conjure items on your behalf, so neither survives a
-        // restart. You opt in per session, the same way Auto Sort does.
+        // This conjures items on your behalf, so it does not survive a restart. You opt in per
+        // session, the same way Auto Sort does.
         Config.get().creativeAcquisition = false;
-        Config.get().creativeDropItems = false;
 
         PRESETS.load();
         ModKeys.init();

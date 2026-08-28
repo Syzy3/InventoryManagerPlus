@@ -36,15 +36,27 @@ public final class ItemPickerScreen extends Screen {
 
     private final Screen parent;
     private final Consumer<Identifier> onPick;
+    /** Optional restriction on what may be chosen; null means anything. */
+    private final java.util.function.Predicate<Item> allowed;
     private final List<Item> matches = new ArrayList<>();
 
     private EditBox search;
     private int page;
 
     public ItemPickerScreen(Screen parent, Consumer<Identifier> onPick) {
+        this(parent, onPick, null);
+    }
+
+    /**
+     * @param allowed when supplied, only items passing this test are listed — used by armour
+     *                slots, which cannot hold anything else
+     */
+    public ItemPickerScreen(Screen parent, Consumer<Identifier> onPick,
+                            java.util.function.Predicate<Item> allowed) {
         super(Component.literal("Choose an item"));
         this.parent = parent;
         this.onPick = onPick;
+        this.allowed = allowed;
     }
 
     @Override
@@ -110,6 +122,9 @@ public final class ItemPickerScreen extends Screen {
         matches.clear();
         String q = query.trim().toLowerCase(Locale.ROOT);
         for (Item item : BuiltInRegistries.ITEM) {
+            if (allowed != null && !allowed.test(item)) {
+                continue;
+            }
             if (q.isEmpty()) {
                 matches.add(item);
                 continue;

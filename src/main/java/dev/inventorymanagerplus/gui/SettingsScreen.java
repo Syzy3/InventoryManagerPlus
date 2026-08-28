@@ -102,13 +102,8 @@ public final class SettingsScreen extends Screen {
 
         y += row;
 
-        add(Component.literal("Drop items: " + onOff(Config.get().creativeDropItems)), x, y, 150, b -> {
-            Config.get().creativeDropItems = !Config.get().creativeDropItems;
-            save();
-        });
-
         add(Component.literal("Pause in inventory: " + onOff(Config.get().pauseWhileInventoryOpen)),
-                right, y, 150, b -> {
+                x, y, 310, b -> {
                     Config.get().pauseWhileInventoryOpen = !Config.get().pauseWhileInventoryOpen;
                     save();
                 });

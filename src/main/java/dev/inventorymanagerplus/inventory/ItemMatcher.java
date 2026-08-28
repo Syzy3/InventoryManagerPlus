@@ -43,6 +43,12 @@ public final class ItemMatcher {
             return false;
         }
 
+        // A category slot asks a question about the kind of item, so item identity and the
+        // recorded component blob are both irrelevant to it.
+        if (spec.isCategory()) {
+            return spec.category().matches(stack);
+        }
+
         Item wanted = spec.resolveItem().orElse(null);
         if (wanted == null || stack.getItem() != wanted) {
             return false;
@@ -145,15 +151,22 @@ public final class ItemMatcher {
     /**
      * Score used to pick between several stacks that all satisfy a requirement.
      *
-     * <p>Higher wins. The ranking encodes two preferences a player would voice if asked:
-     * take the bigger stack (so the hotbar gets the 64 blocks, not the leftover 3), and prefer
-     * a stack that is already close to where it needs to go, which shortens the click sequence
-     * and reduces the chance of a mid-sequence desync.
+     * <p>Higher wins. The ranking encodes preferences a player would voice if asked: take the
+     * bigger stack (so the hotbar gets the 64 blocks, not the leftover 3), prefer a stack that is
+     * already close to where it needs to go, and — when the target is a hotbar slot — pull from
+     * the main inventory rather than from elsewhere in the hotbar.
+     *
+     * <p>That last rule is what makes "obsidian should fill the hotbar first" work. Without it,
+     * filling a hotbar slot could rob another hotbar slot, shuffling the bar around instead of
+     * drawing stock up from the backpack.
      */
     public static int score(ItemStack candidate, int candidateSlot, int targetSlot, boolean unmanaged) {
         int s = 0;
         if (unmanaged) {
             s += 10_000;                       // taking from an unmanaged slot disturbs nothing else
+        }
+        if (InvSlots.isHotbar(targetSlot) && !InvSlots.isHotbar(candidateSlot)) {
+            s += 5_000;                        // stock the hotbar from storage, not from itself
         }
         s += Math.min(candidate.getCount(), 64) * 10;
         s -= Math.abs(candidateSlot - targetSlot);
