@@ -2,7 +2,7 @@
 
 All notable changes to Inventory Manager+ are listed here. Version numbers match the versions published on [Modrinth](https://modrinth.com/mod/inventorymanagerplus/versions).
 
-## [1.1.0] - Unreleased
+## [1.1.0] - 2026-10-04
 
 For Minecraft 26.2, Fabric Loader 0.19.3+, Fabric API.
 
@@ -16,7 +16,7 @@ For Minecraft 26.2, Fabric Loader 0.19.3+, Fabric API.
 - Applying a preset tops up each slot from other stacks of the same item.
 - Large presets keep applying until every slot that can be filled is filled.
 - The active preset is remembered after restarting the game.
-- New mod icon and a Modrinth link in Mod Menu.
+- New mod icon, and Modrinth and Issues links in Mod Menu.
 
 ### Changed
 - Item matching is by item type only. The Basic/Exact match modes were removed. Old presets still load and use the new matching.
