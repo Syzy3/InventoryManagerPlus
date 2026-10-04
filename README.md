@@ -85,7 +85,9 @@ Presets and settings are saved in `config/inventory-manager-plus/`.
 
 ## Versions
 
-Releases follow [semantic versioning](https://semver.org/). The version number on GitHub matches the version on Modrinth. See [CHANGELOG.md](CHANGELOG.md) for what changed in each version. Every release is tagged in this repository (for example `v1.0.0`), and the jar for each version is attached to its [GitHub release](../../releases).
+The mod is only distributed through [Modrinth](https://modrinth.com/mod/inventorymanagerplus). Download it there or through the Modrinth app. No jars are published on GitHub.
+
+Version numbers match between GitHub and Modrinth. Each version is tagged in this repository (for example `v1.0.0`), and its changelog is on the [Releases](../../releases) page and in [CHANGELOG.md](CHANGELOG.md).
 
 ## License
 
