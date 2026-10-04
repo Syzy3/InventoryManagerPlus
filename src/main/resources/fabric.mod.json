@@ -8,10 +8,9 @@
     "Syzy3"
   ],
   "contact": {
-    "homepage": "https://modrinth.com/mod/inventorymanagerplus",
-    "issues": "https://github.com/Syzy3/InventoryManagerPlus/issues"
+    "homepage": "https://modrinth.com/mod/inventorymanagerplus"
   },
-  "license": "LicenseRef-All-Rights-Reserved",
+  "license": "All Rights Reserved",
   "environment": "client",
   "icon": "assets/inventory-manager-plus/icon.png",
   "entrypoints": {
@@ -30,5 +29,12 @@
   },
   "suggests": {
     "modmenu": "*"
+  },
+  "custom": {
+    "modmenu": {
+      "links": {
+        "inventory-manager-plus.modmenu.releases": "https://github.com/Syzy3/InventoryManagerPlus/releases"
+      }
+    }
   }
 }
