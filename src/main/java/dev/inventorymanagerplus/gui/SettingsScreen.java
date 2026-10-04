@@ -55,7 +55,7 @@ public final class SettingsScreen extends Screen {
         int y = 48;
         int row = 24;
 
-        add(Component.literal("Colour: " + Theme.current().name()), x, y, 150, b -> {
+        add(Component.literal("Color: " + Theme.current().name()), x, y, 150, b -> {
             Theme.cycle();
             save();
         });

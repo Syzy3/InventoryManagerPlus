@@ -35,7 +35,7 @@ A client-side Fabric mod for Minecraft 26.2. Save the layout of your hotbar, inv
 - **Keep-empty slots:** mark a hotbar or inventory slot as empty and the preset keeps it clear.
 - **Partial presets:** slots you don't set are unmanaged and never touched.
 - **Creative mode:** optionally creates preset items you don't have, enchantments included. Nothing is ever created in Survival.
-- **Colour themes:** six colour themes for the mod's screens.
+- **Color themes:** six color themes for the mod's screens.
 
 ## Usage
 
@@ -71,7 +71,7 @@ Open settings from the menu or from Mod Menu.
 
 | Setting | Default | Description |
 |---|---|---|
-| Colour | Grey | Colour theme for the mod's screens |
+| Color | Grey | Color theme for the mod's screens |
 | Drop | Off | Applying a preset throws out items in keep-empty slots |
 | Auto Sort drop | Off | Same as Drop, but for Auto Sort |
 | Check every | 10 ticks | How often Auto Sort checks your inventory |

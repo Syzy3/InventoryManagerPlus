@@ -12,7 +12,7 @@ For Minecraft 26.2, Fabric Loader 0.19.3+, Fabric API.
 - Slot options menu (right-click a slot) for categories and enchantments.
 - Press F over a slot in the editor to remove it.
 - Optional **Drop** and **Auto Sort drop** settings that throw out items left in keep-empty slots. Both are off by default.
-- Six colour themes, with themed buttons and dialogs.
+- Six color themes, with themed buttons and dialogs.
 - Applying a preset tops up each slot from other stacks of the same item.
 - Large presets keep applying until every slot that can be filled is filled.
 - The active preset is remembered after restarting the game.
