@@ -1,17 +1,11 @@
 package dev.inventorymanagerplus.inventory;
 
-import com.google.gson.JsonElement;
-import com.mojang.serialization.JsonOps;
 import dev.inventorymanagerplus.preset.EnchantRequirement;
-import dev.inventorymanagerplus.preset.MatchMode;
 import dev.inventorymanagerplus.preset.PresetSlot;
-import net.minecraft.core.HolderLookup;
 import net.minecraft.core.Holder;
-import net.minecraft.core.component.DataComponentPatch;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
-import net.minecraft.resources.RegistryOps;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.enchantment.Enchantment;
@@ -24,18 +18,19 @@ import java.util.Map;
 /**
  * Decides whether a stack in the inventory satisfies a preset slot.
  *
- * <p>Stack size is never part of the decision. A preset saved with a full stack of 64 Cobblestone
- * is satisfied by a single Cobblestone; the count is a hint for Creative acquisition, not a
- * requirement. Durability is likewise ignored in both modes — a half-worn pickaxe is still the
- * pickaxe the player meant.
+ * <p>Stack size is never part of the decision, and neither is durability: a half-worn pickaxe
+ * is still the pickaxe the player meant.
  */
 public final class ItemMatcher {
 
     private ItemMatcher() {
     }
 
-    public static boolean matches(PresetSlot spec, ItemStack stack, MatchMode mode,
-                                  HolderLookup.Provider registries) {
+    /**
+     * @param slot the inventory slot the stack would sit in; lets "Any Armor" in an armour slot
+     *             accept only armour for that slot
+     */
+    public static boolean matches(PresetSlot spec, ItemStack stack, int slot) {
         if (spec.isBlank()) {
             return stack.isEmpty();
         }
@@ -46,7 +41,7 @@ public final class ItemMatcher {
         // A category slot asks a question about the kind of item, so item identity and the
         // recorded component blob are both irrelevant to it.
         if (spec.isCategory()) {
-            return spec.category().matches(stack);
+            return spec.category().matches(stack, slot);
         }
 
         Item wanted = spec.resolveItem().orElse(null);
@@ -54,27 +49,9 @@ public final class ItemMatcher {
             return false;
         }
 
-        // Enchantment conditions are checked in both modes. BASIC deliberately ignores every
-        // other component, but "any Efficiency pickaxe" is a request players make constantly and
-        // there is no way to express it through EXACT, which demands the whole blob match.
-        if (!enchantsSatisfied(spec.enchants(), stack)) {
-            return false;
-        }
-
-        if (mode == MatchMode.BASIC) {
-            return true;
-        }
-
-        // EXACT: every component recorded in the preset must be present and equal on the stack.
-        // Components the preset does not mention are ignored, so a stack that merely gained a
-        // repair-cost bump still matches.
-        DataComponentPatch wantedPatch = decodePatch(spec.rawComponents(), registries);
-        if (wantedPatch == null || wantedPatch.isEmpty()) {
-            // Preset recorded no components: in EXACT mode require the stack to be plain too,
-            // so "plain Diamond Sword" does not silently swallow the enchanted one.
-            return stack.getComponentsPatch().isEmpty();
-        }
-        return patchSatisfiedBy(wantedPatch, stack);
+        // Only the item type and the slot's enchantment condition count. Durability, custom
+        // names and other item details are ignored: "put my sword here" means any sword.
+        return enchantsSatisfied(spec.enchants(), stack);
     }
 
     /**
@@ -118,34 +95,6 @@ public final class ItemMatcher {
             }
         }
         return true;
-    }
-
-    private static boolean patchSatisfiedBy(DataComponentPatch wanted, ItemStack stack) {
-        for (var entry : wanted.entrySet()) {
-            var type = entry.getKey();
-            var expected = entry.getValue();
-            Object actual = stack.get(type);
-            if (expected.isEmpty()) {
-                // The preset explicitly recorded the component as removed.
-                if (actual != null) {
-                    return false;
-                }
-            } else {
-                if (actual == null || !expected.get().equals(actual)) {
-                    return false;
-                }
-            }
-        }
-        return true;
-    }
-
-    private static DataComponentPatch decodePatch(JsonElement json,
-                                                  HolderLookup.Provider registries) {
-        if (json == null || json.isJsonNull() || registries == null) {
-            return null;
-        }
-        var ops = RegistryOps.create(JsonOps.INSTANCE, registries);
-        return DataComponentPatch.CODEC.parse(ops, json).result().orElse(null);
     }
 
     /**

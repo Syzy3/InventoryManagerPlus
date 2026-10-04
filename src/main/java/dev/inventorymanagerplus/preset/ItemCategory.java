@@ -1,6 +1,8 @@
 package dev.inventorymanagerplus.preset;
 
 import net.minecraft.core.component.DataComponents;
+import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.item.equipment.Equippable;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -22,17 +24,20 @@ import java.util.Locale;
  */
 public enum ItemCategory {
 
-    /** Swords, axes, bows, crossbows, tridents, the mace. Checked before tools so axes land here. */
+    /** Swords, spears, axes, bows, crossbows, tridents, the mace and shields. */
     WEAPON("W", "Weapon", "minecraft:diamond_sword"),
-    /** Anything wearable, including elytra and mob heads. */
+    /**
+     * Armour pieces a player wears: helmets, chestplates, leggings, boots, turtle shell.
+     * Not elytra, mob heads, carved pumpkins, saddles, harnesses, carpets or horse/wolf armour.
+     */
     ARMOR("A", "Armor", "minecraft:diamond_chestplate"),
-    /** Pickaxes, shovels, hoes, shears, flint and steel, fishing rods. */
+    /** Pickaxes, shovels, hoes, shears, flint and steel, fishing rods, brushes, compasses... */
     TOOL("T", "Tool", "minecraft:iron_pickaxe"),
     /** Anything edible. */
     FOOD("F", "Food", "minecraft:cooked_beef"),
-    /** Anything placeable. */
+    /** Anything placeable that isn't one of the above. */
     BLOCK("B", "Block", "minecraft:oak_planks"),
-    /** Ingots, gems, dusts, rods and other crafting inputs. */
+    /** Ingots, gems, ores, dyes, seeds, brewing ingredients and other crafting inputs. */
     MATERIAL("MAT", "Material", "minecraft:iron_ingot"),
     /** Everything else, so nothing is ever unclassified. */
     MISC("MSC", "Miscellaneous", "minecraft:feather");
@@ -90,11 +95,28 @@ public enum ItemCategory {
             java.util.Map.entry("pink_petals", MISC),
             java.util.Map.entry("torch", MISC),
             java.util.Map.entry("soul_torch", MISC),
+            java.util.Map.entry("copper_torch", MISC),
             java.util.Map.entry("redstone_torch", MISC),
             java.util.Map.entry("lever", MISC),
             java.util.Map.entry("ladder", MISC),
+            java.util.Map.entry("cobweb", MISC),
+            // Placeable, but they are crafting/farming inputs, not building blocks.
             java.util.Map.entry("string", MATERIAL),
-            java.util.Map.entry("cobweb", MISC));
+            java.util.Map.entry("redstone", MATERIAL),
+            java.util.Map.entry("wheat_seeds", MATERIAL),
+            java.util.Map.entry("beetroot_seeds", MATERIAL),
+            java.util.Map.entry("melon_seeds", MATERIAL),
+            java.util.Map.entry("pumpkin_seeds", MATERIAL),
+            java.util.Map.entry("torchflower_seeds", MATERIAL),
+            java.util.Map.entry("pitcher_pod", MATERIAL),
+            java.util.Map.entry("cocoa_beans", MATERIAL),
+            java.util.Map.entry("nether_wart", MATERIAL),
+            java.util.Map.entry("sugar_cane", MATERIAL),
+            java.util.Map.entry("bamboo", MATERIAL),
+            java.util.Map.entry("resin_clump", MATERIAL));
+
+    /** Classification never changes for an item, so each one is worked out once. */
+    private static final java.util.Map<Item, ItemCategory> CACHE = new java.util.IdentityHashMap<>();
 
     /**
      * The single category an item belongs to.
@@ -105,14 +127,22 @@ public enum ItemCategory {
         if (item == null) {
             return MISC;
         }
+        ItemCategory cached = CACHE.get(item);
+        if (cached == null) {
+            cached = compute(item);
+            CACHE.put(item, cached);
+        }
+        return cached;
+    }
+
+    private static ItemCategory compute(Item item) {
         String path = idPath(item);
 
         ItemCategory override = OVERRIDES.get(path);
         if (override != null) {
             return override;
         }
-
-        if (isWeapon(path)) {
+        if (isWeapon(item, path)) {
             return WEAPON;
         }
         if (isArmor(item)) {
@@ -124,8 +154,8 @@ public enum ItemCategory {
         if (isFood(item)) {
             return FOOD;
         }
-        // Before the BlockItem test: ores and raw-ore blocks are placeable, but nobody thinks of
-        // them as building blocks. They are what you mine to get materials.
+        // Before the BlockItem test: ores are placeable, but nobody thinks of them as building
+        // blocks. They are what you mine to get materials.
         if (isMaterial(path)) {
             return MATERIAL;
         }
@@ -135,13 +165,31 @@ public enum ItemCategory {
         return MISC;
     }
 
+    /** The armour slot an item goes in, or null if a player can't wear it there. */
+    private static EquipmentSlot wornSlot(Item item) {
+        Equippable eq = item.components().get(DataComponents.EQUIPPABLE);
+        if (eq == null || eq.slot().getType() != EquipmentSlot.Type.HUMANOID_ARMOR) {
+            return null;
+        }
+        return eq.slot();
+    }
+
+    private static EquipmentSlot slotFor(int armorIndex) {
+        return switch (armorIndex) {
+            case 39 -> EquipmentSlot.HEAD;
+            case 38 -> EquipmentSlot.CHEST;
+            case 37 -> EquipmentSlot.LEGS;
+            case 36 -> EquipmentSlot.FEET;
+            default -> null;
+        };
+    }
+
     /**
-     * Whether an item may go in a particular player armour slot.
+     * Whether an item may go in a particular player armour slot: anything the game lets a player
+     * wear there, which includes carved pumpkins and mob heads on the head and elytra on the chest.
      *
-     * <p>Deliberately not the {@code EQUIPPABLE} component: since 26.x carpets carry it too,
-     * because llamas wear them, so an equippable test lets a pink carpet into the chestplate
-     * slot. Name suffixes are narrower and also answer the sharper question — the helmet slot
-     * wants a helmet, not merely something wearable.
+     * <p>Read from the item's equippable slot, so carpets and saddles (equippable, but by llamas
+     * and horses) are kept out, and modded armour works without being named.
      *
      * @param armorIndex inventory index 36-39: boots, leggings, chestplate, helmet
      */
@@ -149,15 +197,8 @@ public enum ItemCategory {
         if (item == null) {
             return false;
         }
-        String p = idPath(item);
-        return switch (armorIndex) {
-            case 39 -> p.endsWith("_helmet") || p.equals("turtle_helmet")
-                    || p.equals("carved_pumpkin") || p.endsWith("_head") || p.endsWith("_skull");
-            case 38 -> p.endsWith("_chestplate") || p.equals("elytra");
-            case 37 -> p.endsWith("_leggings");
-            case 36 -> p.endsWith("_boots");
-            default -> false;
-        };
+        EquipmentSlot wanted = slotFor(armorIndex);
+        return wanted != null && wornSlot(item) == wanted;
     }
 
     /** Whether a stack falls into this category. */
@@ -165,62 +206,75 @@ public enum ItemCategory {
         return !stack.isEmpty() && classify(stack.getItem()) == this;
     }
 
+    /**
+     * Whether a stack satisfies this category in a particular inventory slot. In an armour slot,
+     * "Any Armor" means armour for that slot: a helmet slot only takes helmets.
+     */
+    public boolean matches(ItemStack stack, int slot) {
+        if (!matches(stack)) {
+            return false;
+        }
+        if (this == ARMOR && slot >= 36 && slot <= 39) {
+            return fitsArmorSlot(stack.getItem(), slot);
+        }
+        return true;
+    }
+
     // ---------------------------------------------------------------- tests
 
     private static String idPath(Item item) {
-        // Registry lookup avoided here: the item's own toString is stable enough for suffix tests
-        // and works before registries are bound, which is when presets get loaded.
         return net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(item)
                 .getPath().toLowerCase(Locale.ROOT);
     }
 
-    private static boolean isWeapon(String p) {
+    private static boolean isWeapon(Item item, String p) {
         return p.endsWith("_sword")
+                || p.endsWith("_spear")
                 || p.endsWith("_axe") && !p.endsWith("_pickaxe")
                 || p.equals("bow")
                 || p.equals("crossbow")
                 || p.equals("trident")
-                || p.equals("mace");
+                || p.equals("mace")
+                || p.equals("shield")
+                // Modded spears and shields, recognised by what they do rather than their name.
+                || item.components().has(DataComponents.KINETIC_WEAPON)
+                || item.components().has(DataComponents.PIERCING_WEAPON)
+                || item.components().has(DataComponents.BLOCKS_ATTACKS);
     }
 
     /**
-     * Wearable check via the equippable component, so every helmet, elytra, mob head and modded
-     * armour piece is covered without naming any of them.
+     * Real armour: worn in a player armour slot and wears out. That rules out carved pumpkins and
+     * mob heads (no durability), elytra (a glider, not armour) and anything worn by mounts.
      */
     private static boolean isArmor(Item item) {
-        return item.components().has(DataComponents.EQUIPPABLE);
+        return wornSlot(item) != null
+                && item.components().has(DataComponents.MAX_DAMAGE)
+                && !item.components().has(DataComponents.GLIDER);
     }
 
     private static boolean isTool(String p) {
         return p.endsWith("_pickaxe")
                 || p.endsWith("_shovel")
                 || p.endsWith("_hoe")
-                || p.equals("shears")
-                || p.equals("flint_and_steel")
-                || p.equals("fishing_rod")
-                || p.equals("brush")
-                || p.equals("spyglass")
-                || p.equals("compass")
-                || p.equals("clock");
+                || TOOL_NAMES.contains(p);
     }
+
+    private static final java.util.Set<String> TOOL_NAMES = new java.util.HashSet<>(java.util.Arrays.asList(
+            "shears", "flint_and_steel", "fishing_rod", "brush", "spyglass", "compass",
+            "recovery_compass", "clock", "carrot_on_a_stick", "warped_fungus_on_a_stick"));
 
     private static boolean isFood(Item item) {
         return item.components().has(DataComponents.FOOD);
     }
 
     private static boolean isMaterial(String p) {
-        // Storage blocks are building materials in the literal sense but belong with blocks:
-        // a chest of iron blocks is scenery, a stack of ingots is stock.
-        if (p.endsWith("_block") || p.equals("raw_iron_block") || p.equals("raw_gold_block")
-                || p.equals("raw_copper_block")) {
+        // Storage blocks (iron block, raw iron block...) are blocks, not stock.
+        if (p.endsWith("_block")) {
             return false;
         }
-
-        // Raw ore drops: raw_iron, raw_gold, raw_copper.
-        if (p.startsWith("raw_")) {
+        if (p.startsWith("raw_") || p.endsWith("_ore")) {
             return true;
         }
-
         for (String suffix : MATERIAL_SUFFIXES) {
             if (p.endsWith(suffix)) {
                 return true;
@@ -229,16 +283,16 @@ public enum ItemCategory {
         return MATERIAL_NAMES.contains(p);
     }
 
-    /** Endings that reliably mark a crafting input, including modded equivalents. */
+    /**
+     * Endings that only ever mark a crafting input. Kept short on purpose: looser endings like
+     * "_powder" or "_rod" also catch blocks (concrete powder, end rods).
+     */
     private static final String[] MATERIAL_SUFFIXES = {
-            "_ore",          // iron_ore, deepslate_diamond_ore, nether_gold_ore
-            "_ingot", "_nugget", "_dust", "_powder", "_scrap",
-            "_shard", "_crystals", "_rod", "_dye",
-            "_hide", "_scute", "_shell", "_membrane", "_cream", "_tear",
+            "_ingot", "_nugget", "_dye", "_smithing_template",
     };
 
     /**
-     * Materials whose names follow no useful pattern.
+     * Materials whose names follow no useful pattern, checked against every Minecraft 26.2 item.
      *
      * <p>A {@code HashSet} rather than {@code Set.of}: the immutable factory throws on a repeated
      * entry, so one accidental duplicate in this list takes the whole class down at load time and
@@ -246,14 +300,14 @@ public enum ItemCategory {
      */
     private static final java.util.Set<String> MATERIAL_NAMES = new java.util.HashSet<>(
             java.util.Arrays.asList(
-                    "diamond", "emerald", "quartz", "coal", "charcoal", "lapis_lazuli", "redstone",
-                    "amethyst_shard", "ancient_debris", "netherite_scrap", "string", "leather",
-                    "feather", "bone", "gunpowder", "slime_ball", "ink_sac", "glow_ink_sac",
-                    "spider_eye", "rotten_flesh", "blaze_rod", "ghast_tear", "magma_cream",
+                    "diamond", "emerald", "quartz", "coal", "charcoal", "lapis_lazuli",
+                    "amethyst_shard", "echo_shard", "ancient_debris", "netherite_scrap", "leather",
+                    "feather", "bone", "bone_meal", "gunpowder", "slime_ball", "ink_sac", "glow_ink_sac",
+                    "blaze_rod", "blaze_powder", "breeze_rod", "ghast_tear", "magma_cream",
+                    "fermented_spider_eye", "glistering_melon_slice", "rabbit_foot", "dragon_breath",
                     "phantom_membrane", "nautilus_shell", "heart_of_the_sea", "shulker_shell",
-                    "rabbit_hide", "prismarine_crystals", "prismarine_shard", "echo_shard",
-                    "breeze_rod", "wind_charge", "stick", "paper", "flint", "clay_ball", "brick",
-                    "nether_brick", "sugar", "wheat", "sugar_cane", "bamboo", "honeycomb",
-                    "nether_wart", "blaze_powder", "glowstone_dust", "bone_meal", "egg", "milk_bucket",
-                    "copper_ingot"));
+                    "rabbit_hide", "turtle_scute", "armadillo_scute", "prismarine_crystals",
+                    "prismarine_shard", "nether_star", "stick", "paper", "flint", "clay_ball", "brick",
+                    "nether_brick", "resin_brick", "sugar", "wheat", "honeycomb", "glowstone_dust",
+                    "popped_chorus_fruit"));
 }

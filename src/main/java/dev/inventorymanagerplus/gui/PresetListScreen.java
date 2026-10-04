@@ -2,12 +2,12 @@ package dev.inventorymanagerplus.gui;
 
 import dev.inventorymanagerplus.InventoryManagerPlus;
 import dev.inventorymanagerplus.config.Config;
-import dev.inventorymanagerplus.config.Storage;
 import dev.inventorymanagerplus.preset.Preset;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.gui.components.Button;
-import net.minecraft.client.gui.screens.ConfirmScreen;
+import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
@@ -33,6 +33,12 @@ public final class PresetListScreen extends Screen {
     private final Screen parent;
     private int scroll;
     private final java.util.List<Button> themed = new java.util.ArrayList<>();
+    /**
+     * Buttons on the preset cards. They take clicks like any widget but are drawn by this screen
+     * inside the list's clip area, so a card scrolled half out of the list shows half its buttons
+     * instead of drawing them over the header or the footer buttons.
+     */
+    private final java.util.List<Button> cardButtons = new java.util.ArrayList<>();
 
     public PresetListScreen(Screen parent) {
         super(Component.literal("Inventory Manager+"));
@@ -40,8 +46,13 @@ public final class PresetListScreen extends Screen {
     }
 
     private int listWidth() {
-        return Math.min(340, this.width - 40);
+        return Math.min(380, this.width - 40);
     }
+
+    /** Left edge of the right-hand button strip, relative to the card's left edge. */
+    private static final int BUTTONS_FROM_RIGHT = 198;
+    /** Width of the reorder-arrow column at the card's left edge. */
+    private static final int ARROWS_W = 17;
 
     private int listLeft() {
         return (this.width - listWidth()) / 2;
@@ -65,7 +76,10 @@ public final class PresetListScreen extends Screen {
 
     @Override
     protected void init() {
+        // Deleting presets shrinks the list; without this the cards stay scrolled off the top.
+        scroll = Math.max(0, Math.min(scroll, maxScroll()));
         themed.clear();
+        cardButtons.clear();
         List<Preset> presets = InventoryManagerPlus.presets().all();
         int left = listLeft();
         int w = listWidth();
@@ -73,58 +87,90 @@ public final class PresetListScreen extends Screen {
         for (int i = 0; i < presets.size(); i++) {
             Preset preset = presets.get(i);
             int y = cardY(i);
-            boolean visible = y >= LIST_TOP - CARD_HEIGHT && y <= listBottom();
+            // Any part of the card inside the list counts; the clip hides the rest.
+            boolean visible = y + CARD_HEIGHT > LIST_TOP && y < listBottom();
+            int firstButton = cardButtons.size();
+
+            // Reorder arrows, stacked at the card's left edge.
+            Button up = ThemedButton.create(Component.literal("▲"), b -> {
+                InventoryManagerPlus.presets().move(preset, -1);
+                rebuild();
+            }).bounds(left + 3, y + 3, 12, 13).build();
+            up.active = i > 0;
+            up.setTooltip(Tooltip.create(Component.literal("Move up")));
+            themed.add(card(up));
+
+            Button down = ThemedButton.create(Component.literal("▼"), b -> {
+                InventoryManagerPlus.presets().move(preset, 1);
+                rebuild();
+            }).bounds(left + 3, y + 18, 12, 13).build();
+            down.active = i < presets.size() - 1;
+            down.setTooltip(Tooltip.create(Component.literal("Move down")));
+            themed.add(card(down));
 
             // Apply
-            themed.add(addRenderableWidget(Button.builder(Component.literal("Apply"), b -> {
+            themed.add(card(ThemedButton.create(Component.literal("Apply"), b -> {
                 Minecraft mc = Minecraft.getInstance();
                 Component result = InventoryManagerPlus.presets().apply(mc, preset, true);
                 InventoryManagerPlus.status(mc, result.getString());
                 mc.gui.setScreen(null);
-            }).bounds(left + w - 168, offscreen(y + 7, visible), 46, 20).build()));
+            }).bounds(left + w - 194, y + 7, 46, 20).build()));
 
             // Auto Sort toggle
-            themed.add(addRenderableWidget(Button.builder(autoSortLabel(preset), b -> {
-                preset.setAutoSort(!preset.autoSort());
-                if (preset.autoSort()) {
-                    // Turning the switch on implies "watch this one" — without this the player
-                    // has to click Apply first for anything to happen, which reads as broken.
-                    InventoryManagerPlus.presets().setActive(preset);
-                    Config.get().autoSortEnabled = true;
-                    Storage.saveConfig();
-                }
-                InventoryManagerPlus.presets().save();
+            themed.add(card(ThemedButton.create(autoSortLabel(preset), b -> {
+                // Only one preset sorts at a time, so only one switch can be on.
+                InventoryManagerPlus.presets().setAutoSort(preset, !preset.autoSort());
                 rebuild();
-            }).bounds(left + w - 118, offscreen(y + 7, visible), 62, 20).build()));
+            }).bounds(left + w - 144, y + 7, 62, 20).build()));
+
+            // Duplicate
+            Button dup = ThemedButton.create(Component.literal("⧉"), b -> {
+                InventoryManagerPlus.presets().duplicate(preset);
+                rebuild();
+            }).bounds(left + w - 78, y + 7, 22, 20).build();
+            dup.setTooltip(Tooltip.create(Component.literal("Duplicate")));
+            themed.add(card(dup));
 
             // Edit
-            themed.add(addRenderableWidget(Button.builder(Component.literal("✎"), b ->
+            Button edit = ThemedButton.create(Component.literal("✎"), b ->
                     Minecraft.getInstance().gui.setScreen(new PresetEditorScreen(this, preset, false))
-            ).bounds(left + w - 52, offscreen(y + 7, visible), 22, 20).build()));
+            ).bounds(left + w - 52, y + 7, 22, 20).build();
+            edit.setTooltip(Tooltip.create(Component.literal("Edit")));
+            themed.add(card(edit));
 
             // Delete
-            themed.add(addRenderableWidget(Button.builder(Component.literal("✖"), b -> confirmDelete(preset))
-                    .bounds(left + w - 26, offscreen(y + 7, visible), 22, 20).build()));
+            Button del = ThemedButton.create(Component.literal("✖"), b -> confirmDelete(preset))
+                    .bounds(left + w - 26, y + 7, 22, 20).build();
+            del.setTooltip(Tooltip.create(Component.literal("Delete")));
+            themed.add(card(del));
+
+            for (Button b : cardButtons.subList(firstButton, cardButtons.size())) {
+                b.visible = visible;
+            }
         }
 
         // Footer
-        themed.add(addRenderableWidget(Button.builder(Component.literal("+ Create Preset"), b -> {
+        themed.add(addRenderableWidget(ThemedButton.create(Component.literal("+ Create Preset"), b -> {
             Preset preset = Preset.createEmpty("New Preset");
-            preset.setMatchMode(Config.get().defaultMatchMode);
             Minecraft.getInstance().gui.setScreen(new PresetEditorScreen(this, preset, true));
         }).bounds(this.width / 2 - 154, this.height - 30, 100, 20).build()));
 
-        themed.add(addRenderableWidget(Button.builder(Component.literal("Settings"), b ->
+        themed.add(addRenderableWidget(ThemedButton.create(Component.literal("Settings"), b ->
                 Minecraft.getInstance().gui.setScreen(new SettingsScreen(this))
         ).bounds(this.width / 2 - 50, this.height - 30, 100, 20).build()));
 
-        themed.add(addRenderableWidget(Button.builder(Component.literal("Done"), b -> onClose())
+        themed.add(addRenderableWidget(ThemedButton.create(Component.literal("Done"), b -> onClose())
                 .bounds(this.width / 2 + 54, this.height - 30, 100, 20).build()));
     }
 
-    /** Buttons for cards scrolled out of view are moved far off-screen so they cannot be clicked. */
-    private static int offscreen(int y, boolean visible) {
-        return visible ? y : -1000;
+    /** Registers a card button for clicks only; it is drawn clipped in extractRenderState. */
+    private Button card(Button button) {
+        if (button instanceof ThemedButton themedButton) {
+            themedButton.clipVertically(LIST_TOP, listBottom());
+        }
+        addWidget(button);
+        cardButtons.add(button);
+        return button;
     }
 
     private int cardY(int index) {
@@ -147,7 +193,7 @@ public final class PresetListScreen extends Screen {
             return;
         }
         Minecraft mc = Minecraft.getInstance();
-        mc.gui.setScreen(new ConfirmScreen(
+        mc.gui.setScreen(new ThemedConfirmScreen(
                 accepted -> {
                     if (accepted) {
                         InventoryManagerPlus.presets().remove(preset);
@@ -177,12 +223,6 @@ public final class PresetListScreen extends Screen {
 
         int accent = Theme.current().accent();
 
-        // Low-alpha accent wash over each button: vanilla buttons are textured sprites and cannot
-        // be recoloured without a custom widget, but this tints them and keeps the hover state.
-        int wash = (accent & 0x00FFFFFF) | 0x38000000;
-        for (Button b : themed) {
-            graphics.fill(b.getX(), b.getY(), b.getX() + b.getWidth(), b.getY() + b.getHeight(), wash);
-        }
 
         graphics.text(this.font, "Inventory Manager+", this.width / 2 - 60, 16, accent, true);
 
@@ -210,14 +250,21 @@ public final class PresetListScreen extends Screen {
             // Stop short of the button strip. super() draws the widgets before this runs,
             // so a full-width fill would paint straight over them.
             var palette = Theme.current();
-            graphics.fill(left, y, left + w - 172, y + CARD_HEIGHT, isActive ? palette.cardActive() : palette.card());
-            graphics.outline(left, y, w, CARD_HEIGHT, isActive ? palette.accent() : 0xFF3A3A3A);
+            // Also stops short of the reorder arrows on the left, for the same reason.
+            graphics.fill(left + ARROWS_W, y, left + w - BUTTONS_FROM_RIGHT, y + CARD_HEIGHT,
+                    isActive ? palette.cardActive() : palette.card());
+            graphics.outline(left, y, w, CARD_HEIGHT, isActive ? palette.accent() : Theme.border());
 
             ItemStack icon = iconStack(preset);
-            Render.item(graphics, icon, left + 8, y + 9);
+            Render.item(graphics, icon, left + ARROWS_W + 3, y + 9);
 
-            graphics.text(this.font, preset.name(), left + 30, y + 7, 0xFFFFFFFF, false);
-            graphics.text(this.font, describe(preset), left + 30, y + 19, accent, false);
+            int textX = left + ARROWS_W + 24;
+            int textW = w - BUTTONS_FROM_RIGHT - ARROWS_W - 28;
+            graphics.text(this.font, fit(preset.name(), textW), textX, y + 7, 0xFFFFFFFF, false);
+            graphics.text(this.font, fit(describe(preset), textW), textX, y + 19, accent, false);
+        }
+        for (Button b : cardButtons) {
+            b.extractRenderState(graphics, mouseX, mouseY, delta);
         }
         graphics.disableScissor();
     }
@@ -227,7 +274,22 @@ public final class PresetListScreen extends Screen {
         long blanks = preset.slots().size() - filled;
         return filled + " item" + (filled == 1 ? "" : "s")
                 + (blanks > 0 ? ", " + blanks + " blank" : "")
-                + "  •  " + (preset.matchMode() == dev.inventorymanagerplus.preset.MatchMode.BASIC ? "Basic" : "Exact");
+                + (preset.hasHotkey()
+                        ? "  •  Key: " + InputConstants.Type.KEYSYM.getOrCreate(preset.hotkey())
+                                .getDisplayName().getString()
+                        : "");
+    }
+
+    /** Shortens text to fit a width, ending in "..." when cut. */
+    private String fit(String text, int maxWidth) {
+        if (this.font.width(text) <= maxWidth) {
+            return text;
+        }
+        String cut = text;
+        while (!cut.isEmpty() && this.font.width(cut + "...") > maxWidth) {
+            cut = cut.substring(0, cut.length() - 1);
+        }
+        return cut + "...";
     }
 
     private ItemStack iconStack(Preset preset) {

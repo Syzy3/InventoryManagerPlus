@@ -1,112 +1,94 @@
 # Inventory Manager+
 
-Save your inventory layout as a preset and put it back with one click.
+A client-side Fabric mod for Minecraft 26.2. Save the layout of your hotbar, inventory, armour and off-hand as a preset, then put everything back in place with one click or a hotkey.
 
-Made a perfect PvP hotbar? A mining kit? A building loadout? Save it once, then restore it any
-time — after a death, after raiding a chest, or just because everything drifted out of place.
+[Download on Modrinth](https://modrinth.com/mod/inventorymanagerplus)
 
-**Inventory Manager+ never drops, deletes or destroys an item.** Not when your inventory is full,
-not when a preset can't be completed, not if you close the screen halfway through. Items only ever
-move between slots.
-
----
-
-## Features
-
-**Presets** — Save any arrangement of your hotbar, inventory, off-hand and armour. Capture your
-current layout in one click, or build one by hand from any item in the game.
-
-**One-click apply** — Open the menu, click a preset, done. Items already in the right place are
-left alone, so applying a preset twice costs nothing.
-
-**Auto Sort** — Turn it on for a preset and your layout maintains itself. Pick something up out of
-place and it slides back where it belongs. Hold **left Alt** to pause it while you rearrange
-things manually.
-
-**Enchantment requirements** — A preset can ask for *any* Efficiency pickaxe, or specifically a
-Sharpness IV-or-better sword. Right-click a weapon, tool or armour piece in the editor to choose.
-
-**Partial presets** — You don't have to fill every slot. Slots you never touch stay unmanaged, and
-the preset leaves whatever is in them completely alone.
-
-**Blank slots** — Mark a slot as deliberately empty and the preset will keep it clear.
-
-**Creative support** — In Creative, items you don't own are created for you, enchantments
-included. In Survival nothing is conjured; missing items are simply reported.
-
-**Multiplayer safe** — Every action is an ordinary click the server sees and approves. Nothing is
-faked client-side, and the mod won't act while a chest or crafting table is open.
-
----
-
-## Installing
-
-1. Install [Fabric Loader](https://fabricmc.net/use/) 0.19.3 or newer for **Minecraft 26.2**
-2. Put [Fabric API](https://modrinth.com/mod/fabric-api) in your `mods` folder — required
-3. Put `inventory-manager-plus-1.0.0.jar` in your `mods` folder
-4. Launch
-
-[Mod Menu](https://modrinth.com/mod/modmenu) is optional. With it you get a config button on the
-mod list; without it everything is still reachable in game.
-
-This is a **client-side** mod. You don't need it on the server, and the server doesn't need to know
-it exists.
-
----
-
-## Using it
-
-**Open the menu** with the icon in the pause screen, or press **Z**.
-
-**Make a preset:** New Preset → arrange your inventory how you like it → Capture Hotbar or Capture
-Inventory → name it → Save.
-
-**Apply one:** open the menu and click it.
-
-**Edit a slot:** click it to copy from your inventory, or switch to Browse to pick any item in the
-game. Right-click a weapon, tool or armour piece to set enchantment requirements.
-
-**Rebind the keys** in Options → Controls, under Inventory Manager+.
-
-### Match modes
-
-Each preset matches in one of two ways:
-
-- **Basic** — item type only. Any diamond sword satisfies "diamond sword". This is what you want
-  almost always.
-- **Exact** — item type plus custom name, potion type and other item data. Use it to tell a
-  named sword apart from an ordinary one.
-
-Durability never matters in either mode, and neither does stack size — a preset saved with 64
-cobblestone is happy with 37.
-
----
-
-## Settings
-
-Auto Sort speed and limits, default match mode, delete confirmation, Creative item creation, and
-status messages are all adjustable in the settings screen. There are six colour themes.
-
-Presets are stored in `config/inventory-manager-plus/`, written safely so a crash can't corrupt
-them.
-
----
+> [!WARNING]
+> **Check a server's rules before using this mod on it.** Many servers, especially PvP, minigame and competitive servers, ban inventory sorting and auto-arranging mods, and their anticheat may flag the fast inventory clicks this mod makes. You can be kicked or banned for using it where it isn't allowed. If you are unsure, ask the server's staff first. Use it on servers at your own risk. The author is not responsible for any punishment.
 
 ## Requirements
 
 | | |
 |---|---|
 | Minecraft | 26.2 |
-| Fabric Loader | 0.19.3+ |
-| Fabric API | required |
+| Fabric Loader | 0.19.3 or newer |
+| Fabric API | Required |
+| Mod Menu | Optional (adds a config button to the mod list) |
 | Java | 25 |
-| Side | Client only |
+| Side | Client only. Not needed on the server. |
 
----
+## Installation
 
-## Licence
+1. Install [Fabric Loader](https://fabricmc.net/use/) for Minecraft 26.2.
+2. Put [Fabric API](https://modrinth.com/mod/fabric-api) in your `mods` folder.
+3. Download the latest version from [Modrinth](https://modrinth.com/mod/inventorymanagerplus) and put it in your `mods` folder.
 
-Copyright © 2026 **Syzy3**. All rights reserved. See [LICENSE](LICENSE).
+## Features
 
-You're welcome to download and play with this mod. Please don't reupload it, sell it, or put it in
-a modpack without asking me first.
+- **Presets:** save any arrangement of the hotbar, main inventory, armour and off-hand. Capture your current layout, or build one by hand from any item in the game.
+- **Apply:** click a preset to rearrange your inventory to match it. Slots that are already correct are left alone. Each slot is filled as full as possible from matching stacks.
+- **Auto Sort:** keeps one preset's layout in place as you play. It waits while you are eating, drawing a bow or holding an item on the cursor, and pauses while a chest or other container is open. Hold left Alt to pause it.
+- **Preset hotkeys:** give a preset its own key to apply it from anywhere in game.
+- **Categories:** a slot can accept any Weapon, Armor, Tool, Food, Block, Material or Miscellaneous item instead of one specific item. In an armour slot, "Any Armor" means armour for that slot.
+- **Enchantment requirements:** a slot can require specific enchantments, for example any Efficiency pickaxe or a sword with Sharpness IV or higher.
+- **Keep-empty slots:** mark a hotbar or inventory slot as empty and the preset keeps it clear.
+- **Partial presets:** slots you don't set are unmanaged and never touched.
+- **Creative mode:** optionally creates preset items you don't have, enchantments included. Nothing is ever created in Survival.
+- **Colour themes:** six colour themes for the mod's screens.
+
+## Usage
+
+| Action | How |
+|---|---|
+| Open the menu | Press **Z**, or use the button on the pause screen |
+| Create a preset | **New Preset**, then **Capture Hotbar** or **Capture Inventory**, name it, **Save Preset** |
+| Apply a preset | Click it in the menu, or press its hotkey |
+| Set a slot | Click it to copy from your inventory, or switch to **Browse items** to pick any item |
+| Slot options | Right-click a slot for categories and enchantments |
+| Remove a slot | Hover over it and press **F** |
+| Set a preset hotkey | Click **Key** next to the preset name and press a key (Backspace clears it) |
+| Reorder or duplicate | Use the ▲ ▼ and ⧉ buttons on a preset card |
+| Pause Auto Sort | Hold **left Alt** |
+
+All keys can be changed in Options → Controls → Inventory Manager+. The **Apply Active Preset** and **Toggle Auto Sort** keys are unbound by default.
+
+### How items are matched
+
+A slot matches by item type. Any diamond sword counts as "diamond sword". Durability, custom names and stack size are ignored. To be more specific about gear, right-click the slot and set enchantment requirements.
+
+## Item safety
+
+Items only ever move between slots of your own inventory. The mod does not drop, delete or destroy items, including when your inventory is full, a preset can't be completed, or you close a screen partway through.
+
+The one exception is the **Drop** setting, which is off by default. With it on, applying a preset throws out anything left in slots marked empty, after first trying to stack it onto the same item elsewhere. Auto Sort only drops items if **Auto Sort drop** is also turned on.
+
+Every action is a normal inventory click that the server sees and approves. Nothing is faked on the client.
+
+## Settings
+
+Open settings from the menu or from Mod Menu.
+
+| Setting | Default | Description |
+|---|---|---|
+| Colour | Grey | Colour theme for the mod's screens |
+| Drop | Off | Applying a preset throws out items in keep-empty slots |
+| Auto Sort drop | Off | Same as Drop, but for Auto Sort |
+| Check every | 10 ticks | How often Auto Sort checks your inventory |
+| Move delay | 2 ticks | Delay between inventory actions. Raise it if a server rejects moves |
+| Status messages | On | Show messages above the hotbar |
+| Confirm delete | On | Ask before deleting a preset |
+| Creative auto-get | Off | Create missing preset items in Creative mode |
+| Pause in inventory | On | Auto Sort waits while any screen is open |
+
+Presets and settings are saved in `config/inventory-manager-plus/`.
+
+## Versions
+
+Releases follow [semantic versioning](https://semver.org/). The version number on GitHub matches the version on Modrinth. See [CHANGELOG.md](CHANGELOG.md) for what changed in each version. Every release is tagged in this repository (for example `v1.0.0`), and the jar for each version is attached to its [GitHub release](../../releases).
+
+## License
+
+Copyright © 2026 Syzy3. All rights reserved. See [LICENSE](LICENSE) for the full terms.
+
+In short: you can play with the mod, make videos with it, and include it in modpacks that download it from the official Modrinth page. You can't reupload it, sell it, or publish modified versions without permission.

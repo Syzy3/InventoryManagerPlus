@@ -1,49 +1,36 @@
 package dev.inventorymanagerplus.preset;
 
-import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.Item;
-import net.minecraft.world.item.ItemStack;
 
 import java.util.Optional;
 
 /**
- * What a preset wants in one particular inventory slot.
+ * What a preset wants in one particular inventory slot: a specific item (optionally with an
+ * enchantment condition), any item of a category, or nothing at all ("keep empty").
  *
- * <p>Deliberately stores an item <em>identifier</em> plus an optional raw component blob rather
- * than an {@link ItemStack}. Two reasons:
+ * <p>Stores an item <em>identifier</em> rather than an {@code ItemStack}. Since 26.1 a stack
+ * can't be built before a world is loaded, and presets are read at client startup; a Creative
+ * preset also has to work when the player owns none of the item.
  *
- * <ol>
- *   <li>Since 26.1 an {@code ItemStack} cannot even be constructed before a world is loaded, and
- *       presets are read from disk at client startup.</li>
- *   <li>A Creative preset must be usable when the player owns none of the item, so the preset
- *       cannot be a reference to a stack that happens to exist right now.</li>
- * </ol>
- *
- * <p>{@code count} is stored for display and for Creative acquisition only. It is never used as a
- * matching requirement — a preset asking for 64 Cobblestone is satisfied by 37 Cobblestone.
+ * <p>There is no amount: a slot says which item goes there, and applying fills it as full as it
+ * can be. Older saves carry "count" and "components" fields; they are ignored.
  */
 public final class PresetSlot {
 
     /** Marker meaning "the player wants this slot left empty". */
-    private static final PresetSlot BLANK = new PresetSlot(null, 0, null, null, null);
+    private static final PresetSlot BLANK = new PresetSlot(null, null, null);
 
     private final Identifier itemId;
-    private final int count;
-    /** Raw serialised {@code DataComponentPatch}; only consulted in {@link MatchMode#EXACT}. */
-    private final JsonElement components;
-    /** Enchantment condition, applied in both match modes. Never null. */
+    /** Enchantment condition. Never null. */
     private final EnchantRequirement enchants;
-    /** When set, the slot accepts any item of this category and {@link #itemId} is only a hint. */
+    /** When set, the slot accepts any item of this category and has no item id. */
     private final ItemCategory category;
 
-    private PresetSlot(Identifier itemId, int count, JsonElement components,
-                       EnchantRequirement enchants, ItemCategory category) {
+    private PresetSlot(Identifier itemId, EnchantRequirement enchants, ItemCategory category) {
         this.itemId = itemId;
-        this.count = count;
-        this.components = components;
         this.enchants = enchants == null ? EnchantRequirement.ignore() : enchants;
         this.category = category;
     }
@@ -52,13 +39,12 @@ public final class PresetSlot {
         return BLANK;
     }
 
-    public static PresetSlot of(Identifier itemId, int count, JsonElement components) {
-        return new PresetSlot(itemId, Math.max(1, count), components, null, null);
+    public static PresetSlot of(Identifier itemId) {
+        return new PresetSlot(itemId, null, null);
     }
 
-    public static PresetSlot of(Identifier itemId, int count, JsonElement components,
-                                EnchantRequirement enchants) {
-        return new PresetSlot(itemId, Math.max(1, count), components, enchants, null);
+    public static PresetSlot of(Identifier itemId, EnchantRequirement enchants) {
+        return new PresetSlot(itemId, enchants, null);
     }
 
     /**
@@ -69,12 +55,12 @@ public final class PresetSlot {
      * different for a bow than for a sword.
      */
     public static PresetSlot ofCategory(ItemCategory category) {
-        return new PresetSlot(null, 1, null, null, category);
+        return new PresetSlot(null, null, category);
     }
 
-    /** Same item and count, with a different enchantment condition. */
+    /** Same item, with a different enchantment condition. */
     public PresetSlot withEnchants(EnchantRequirement req) {
-        return new PresetSlot(itemId, count, components, req, category);
+        return new PresetSlot(itemId, req, category);
     }
 
     public ItemCategory category() {
@@ -100,14 +86,6 @@ public final class PresetSlot {
         return itemId;
     }
 
-    public int count() {
-        return count;
-    }
-
-    public JsonElement rawComponents() {
-        return components;
-    }
-
     public EnchantRequirement enchants() {
         return enchants;
     }
@@ -124,20 +102,20 @@ public final class PresetSlot {
 
     public JsonObject toJson() {
         JsonObject o = new JsonObject();
+        if (category != null) {
+            // Written with the category's stand-in icon as "item", so older versions of the mod
+            // still find an item here when they read the file.
+            o.addProperty("item", category.iconId());
+            o.addProperty("category", category.name());
+            return o;
+        }
         if (itemId == null) {
             o.addProperty("blank", true);
             return o;
         }
         o.addProperty("item", itemId.toString());
-        o.addProperty("count", count);
-        if (components != null && !components.isJsonNull()) {
-            o.add("components", components);
-        }
         if (!enchants.isNoop()) {
             o.add("enchants", enchants.toJson());
-        }
-        if (category != null) {
-            o.addProperty("category", category.name());
         }
         return o;
     }
@@ -146,6 +124,12 @@ public final class PresetSlot {
         if (o.has("blank") && o.get("blank").getAsBoolean()) {
             return blank();
         }
+        if (o.has("category")) {
+            ItemCategory cat = ItemCategory.byName(o.get("category").getAsString());
+            if (cat != null) {
+                return ofCategory(cat);
+            }
+        }
         if (!o.has("item")) {
             return blank();
         }
@@ -153,17 +137,9 @@ public final class PresetSlot {
         if (id == null) {
             return blank();
         }
-        int c = o.has("count") ? o.get("count").getAsInt() : 1;
-        JsonElement comps = o.has("components") ? o.get("components") : null;
         EnchantRequirement req = o.has("enchants") && o.get("enchants").isJsonObject()
                 ? EnchantRequirement.fromJson(o.getAsJsonObject("enchants"))
                 : EnchantRequirement.ignore();
-        ItemCategory cat = o.has("category")
-                ? ItemCategory.byName(o.get("category").getAsString())
-                : null;
-        if (cat != null) {
-            return ofCategory(cat);
-        }
-        return of(id, c, comps, req);
+        return of(id, req);
     }
 }

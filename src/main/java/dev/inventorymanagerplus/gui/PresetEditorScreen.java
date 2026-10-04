@@ -9,12 +9,11 @@ import dev.inventorymanagerplus.preset.ItemCategory;
 import dev.inventorymanagerplus.preset.Preset;
 import dev.inventorymanagerplus.preset.PresetSlot;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.components.Tooltip;
+import net.minecraft.client.KeyMapping;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
-import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
-import net.minecraft.client.gui.components.events.GuiEventListener;
-import net.minecraft.client.gui.screens.ConfirmScreen;
 import net.minecraft.client.gui.screens.Screen;
 import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.input.MouseButtonEvent;
@@ -23,7 +22,6 @@ import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
-import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 
 /**
@@ -76,30 +74,6 @@ public final class PresetEditorScreen extends Screen {
     private int gridLeft;
     private int gridTop;
 
-    // ---- amount prompt ---------------------------------------------------------------------
-
-    private static final int PROMPT_W = 200;
-    private static final int PROMPT_H = 104;
-
-    /** Slot the amount prompt is filling in, or -1 when no prompt is open. */
-    private int amountSlot = -1;
-    /** Item the prompt is asking about. */
-    private Identifier amountItemId;
-    /** Largest stack this item allows: 16 for eggs, 64 for obsidian, 1 for a sword. */
-    private int amountMax = 1;
-    /** Value the box starts on — the count copied from the inventory, or 1 when browsing. */
-    private int amountStart = 1;
-    private EditBox amountBox;
-    /**
-     * The prompt's widgets, registered for input only.
-     *
-     * <p>They are added with {@code addWidget} rather than {@code addRenderableWidget} because
-     * everything a screen draws in {@link #extractRenderState} lands on top of every widget it
-     * renders. Registered normally, the panel and its dimming would cover its own text box. Held
-     * here instead, they are drawn by hand after the dimming, which puts them where they belong.
-     */
-    private final java.util.List<AbstractWidget> promptWidgets = new java.util.ArrayList<>();
-
     public PresetEditorScreen(Screen parent, Preset preset, boolean isNew) {
         super(Component.literal(isNew ? "Create Preset" : "Edit Preset"));
         this.parent = parent;
@@ -118,7 +92,21 @@ public final class PresetEditorScreen extends Screen {
         nameBox.setValue(preset.name());
         addRenderableWidget(nameBox);
 
-        addRenderableWidget(Button.builder(Component.literal("Click does: " + mode.label), b -> {
+        // This preset's own hotkey, next to its name.
+        Button keyButton = ThemedButton.create(Component.literal(hotkeyLabel()), b -> {
+            listeningForHotkey = true;
+            rebuild();
+        }).bounds(this.width / 2 + 104, 34, 96, 20).build();
+        // A clash with another preset or a Controls key is mentioned here, on hover, rather than
+        // as a message on screen.
+        String clash = preset.hasHotkey() ? conflictsFor(preset.hotkey()) : null;
+        keyButton.setTooltip(Tooltip.create(Component.literal(
+                "A key that applies this preset straight away, without opening the menu. "
+                        + "Click, then press a key. Backspace clears it, Escape cancels."
+                        + (clash != null ? "\n\n" + clash : ""))));
+        addRenderableWidget(keyButton);
+
+        addRenderableWidget(ThemedButton.create(Component.literal("Click does: " + mode.label), b -> {
             mode = mode.next();
             rebuild();
         }).bounds(this.width / 2 - 100, 58, 200, 20).build());
@@ -134,30 +122,24 @@ public final class PresetEditorScreen extends Screen {
 
         int controlsTop = gridTop + 3 * SLOT + 8 + SLOT + 16;
 
-        addRenderableWidget(Button.builder(Component.literal("Capture Hotbar"), b -> {
+        addRenderableWidget(ThemedButton.create(Component.literal("Capture Hotbar"), b -> {
             captureHotbar();
             rebuild();
         }).bounds(this.width / 2 - 154, controlsTop, 100, 20).build());
 
-        addRenderableWidget(Button.builder(Component.literal("Capture Inventory"), b -> {
+        addRenderableWidget(ThemedButton.create(Component.literal("Capture Inventory"), b -> {
             captureInventory();
             rebuild();
         }).bounds(this.width / 2 - 50, controlsTop, 100, 20).build());
 
-        addRenderableWidget(Button.builder(Component.literal("Clear All"), b -> {
-            preset.slots().clear();
-            rebuild();
-        }).bounds(this.width / 2 + 54, controlsTop, 100, 20).build());
+        addRenderableWidget(ThemedButton.create(Component.literal("Clear All"), b -> confirmClearAll())
+                .bounds(this.width / 2 + 54, controlsTop, 100, 20).build());
 
-        addRenderableWidget(Button.builder(Component.literal("Cancel"), b -> onClose())
+        addRenderableWidget(ThemedButton.create(Component.literal("Cancel"), b -> onClose())
                 .bounds(this.width / 2 - 104, this.height - 28, 100, 20).build());
 
-        addRenderableWidget(Button.builder(Component.literal("Save Preset"), b -> save())
+        addRenderableWidget(ThemedButton.create(Component.literal("Save Preset"), b -> save())
                 .bounds(this.width / 2 + 4, this.height - 28, 100, 20).build());
-
-        if (promptOpen()) {
-            buildAmountPrompt();
-        }
     }
 
     private void addSlotButton(int index) {
@@ -165,10 +147,11 @@ public final class PresetEditorScreen extends Screen {
         if (p == null) {
             return;
         }
-        addRenderableWidget(Button.builder(Component.empty(), b -> {
+        addRenderableWidget(ThemedButton.create(Component.empty(), b -> {
             handleSlotClick(index);
             rebuild();
-        }).bounds(p[0], p[1], Render.SLOT_INNER, Render.SLOT_INNER).build());
+        }).bounds(p[0], p[1], Render.SLOT_INNER, Render.SLOT_INNER)
+                .slot(() -> preset.slots().containsKey(index)).build());
     }
 
     private void rebuild() {
@@ -177,6 +160,87 @@ public final class PresetEditorScreen extends Screen {
         }
         clearWidgets();
         init();
+    }
+
+    /** Clear All wipes every slot, so it asks first. Nothing is asked when there's nothing to clear. */
+    private void confirmClearAll() {
+        if (preset.slots().isEmpty()) {
+            return;
+        }
+        Minecraft mc = Minecraft.getInstance();
+        mc.gui.setScreen(new ThemedConfirmScreen(
+                clear -> {
+                    if (clear) {
+                        preset.slots().clear();
+                    }
+                    mc.gui.setScreen(this);
+                },
+                Component.literal("Clear every slot in this preset?"),
+                Component.literal("You can still Cancel the editor afterwards to undo it. Your items are not affected."),
+                Component.literal("Clear All"),
+                Component.literal("Keep slots")));
+    }
+
+    // ---------------------------------------------------------------- hotkey
+
+    /** True while waiting for the player to press this preset's new hotkey. */
+    private boolean listeningForHotkey;
+
+    private static final int KEY_ESCAPE = 256;
+    private static final int KEY_BACKSPACE = 259;
+
+    private String hotkeyLabel() {
+        if (listeningForHotkey) {
+            return "Key: ...";
+        }
+        return "Key: " + (preset.hasHotkey()
+                ? InputConstants.Type.KEYSYM.getOrCreate(preset.hotkey()).getDisplayName().getString()
+                : "None");
+    }
+
+    /**
+     * Watches the keyboard for the new hotkey. Polled like the F key and the Settings key
+     * buttons, since the key-event signature changed in 26.x. Escape cancels, Backspace clears.
+     */
+    private void pollHotkey() {
+        var window = Minecraft.getInstance().getWindow();
+        if (InputConstants.isKeyDown(window, KEY_ESCAPE)) {
+            listeningForHotkey = false;
+            rebuild();
+            return;
+        }
+        if (InputConstants.isKeyDown(window, KEY_BACKSPACE)) {
+            preset.setHotkey(-1);
+            listeningForHotkey = false;
+            rebuild();
+            return;
+        }
+        for (int code = 32; code <= 348; code++) {
+            if (InputConstants.isKeyDown(window, code)) {
+                preset.setHotkey(code);
+                listeningForHotkey = false;
+                // The key is still down; don't let it also count as F-to-clear on this frame.
+                clearKeyHeld = true;
+                rebuild();
+                return;
+            }
+        }
+    }
+
+    /** What else the key already does, so the player can pick another one if that's a problem. */
+    private String conflictsFor(int code) {
+        var other = InventoryManagerPlus.presets().withHotkey(code, preset);
+        if (other.isPresent()) {
+            return "That key also applies \"" + other.get().name() + "\".";
+        }
+        InputConstants.Key key = InputConstants.Type.KEYSYM.getOrCreate(code);
+        for (KeyMapping mapping : Minecraft.getInstance().options.keyMappings) {
+            if (mapping.matches(key)) {
+                return "That key is also " + Component.translatable(mapping.getName()).getString()
+                        + " in Controls.";
+            }
+        }
+        return null;
     }
 
     private void save() {
@@ -211,9 +275,9 @@ public final class PresetEditorScreen extends Screen {
     /**
      * Snapshots the three main rows plus the off-hand, leaving the hotbar untouched.
      *
-     * <p>Empty slots are skipped rather than marked blank. Twenty-seven forced blanks would make
-     * the preset demand a nearly empty backpack, and every unrelated item picked up afterwards
-     * would get shuffled around trying to satisfy it.
+     * <p>Empty rows slots become "keep empty", the same as Capture Hotbar, so the capture is an
+     * exact copy of the layout. An empty off-hand is left unmanaged: armour and the off-hand
+     * never use "keep empty".
      */
     private void captureInventory() {
         var player = Minecraft.getInstance().player;
@@ -222,7 +286,9 @@ public final class PresetEditorScreen extends Screen {
         }
         for (int i = InvSlots.MAIN_START; i <= InvSlots.MAIN_END; i++) {
             ItemStack stack = player.getInventory().getItem(i);
-            if (!stack.isEmpty()) {
+            if (stack.isEmpty()) {
+                preset.slots().put(i, PresetSlot.blank());
+            } else {
                 record(i, stack);
             }
         }
@@ -235,7 +301,7 @@ public final class PresetEditorScreen extends Screen {
     private void record(int slot, ItemStack stack) {
         var id = ItemMatcher.idOf(stack);
         if (id != null) {
-            preset.slots().put(slot, PresetSlot.of(id, stack.getCount(), null));
+            preset.slots().put(slot, PresetSlot.of(id));
         }
     }
 
@@ -247,11 +313,11 @@ public final class PresetEditorScreen extends Screen {
                     InvSlots.isArmor(slot)
                             ? item -> ItemCategory.fitsArmorSlot(item, slot)
                             : null;
-            // The prompt is opened rather than shown here: the picker is still the active screen
-            // at this point, and closes to the editor immediately afterwards, whose init() builds
-            // the panel.
             Minecraft.getInstance().gui.setScreen(new ItemPickerScreen(this,
-                    id -> openAmountPrompt(slot, id, 1), filter));
+                    id -> preset.slots().put(slot, PresetSlot.of(id)),
+                    // Armour and the off-hand don't offer "keep empty".
+                    slot < InvSlots.STORAGE_SIZE ? () -> preset.slots().put(slot, PresetSlot.blank()) : null,
+                    filter));
             return;
         }
 
@@ -272,13 +338,13 @@ public final class PresetEditorScreen extends Screen {
         }
         Identifier id = ItemMatcher.idOf(live);
         if (id != null) {
-            // Seeded with the count actually held, since that is usually the amount wanted.
-            openAmountPrompt(slot, id, live.getCount());
+            // Only the item is recorded, never the amount: a preset slot is "steak goes here".
+            preset.slots().put(slot, PresetSlot.of(id));
         }
     }
 
     /**
-     * Right-click opens the enchantment picker for whichever slot is under the cursor.
+     * Right-click opens Slot options for whichever slot is under the cursor.
      *
      * <p>Handled here rather than on the slot widgets because vanilla {@link Button} only reacts
      * to the left mouse button, and subclassing it in 26.2 would mean reimplementing
@@ -286,11 +352,6 @@ public final class PresetEditorScreen extends Screen {
      */
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
-        if (promptOpen()) {
-            // The panel owns the screen while it is up, so a right-click must not reach the grid.
-            // Left clicks still go to super, which is how the box and its buttons work.
-            return event.button() == 1 || super.mouseClicked(event, doubleClick);
-        }
         if (event.button() == 1) {
             int slot = hoveredSlot((int) event.x(), (int) event.y());
             if (slot >= 0) {
@@ -302,30 +363,42 @@ public final class PresetEditorScreen extends Screen {
     }
 
     /**
-     * Right-click target. Routed by what the slot holds, so the gesture always lands on the
-     * thing that makes sense there: enchantable gear goes straight to the enchantment picker,
-     * anything else to the category picker.
+     * Right-click target. Always the same menu, whatever the slot holds, so right-click is
+     * predictable: enchantments (when there is an enchantable item), categories, and clear.
      */
     private void openSlotOptions(int slot) {
         PresetSlot spec = preset.slots().get(slot);
 
         boolean enchantable = spec != null && !spec.isCategory() && !spec.isBlank()
                 && EnchantCatalog.isEnchantable(spec.itemId());
-        if (enchantable) {
-            openEnchantPicker(slot);
-            return;
-        }
 
-        // Armour slots take a specific piece or nothing. "Any Armor" cannot work here: the
-        // helmet slot would happily accept boots, and the preset would report itself satisfied
-        // while leaving the player bare-headed.
-        if (InvSlots.isArmor(slot)) {
-            return;
-        }
-
+        // Armour slots only offer "Any Armor", and the matcher narrows it to that slot: the
+        // helmet slot takes any helmet, never boots.
         ItemCategory currentCat = spec != null && spec.isCategory() ? spec.category() : null;
-        Minecraft.getInstance().gui.setScreen(new CategoryPickerScreen(this, currentCat,
+        java.util.List<ItemCategory> offered = InvSlots.isArmor(slot)
+                ? java.util.List.of(ItemCategory.ARMOR)
+                : java.util.List.of(ItemCategory.values());
+
+        Minecraft.getInstance().gui.setScreen(new SlotOptionsScreen(this,
+                InvSlots.describe(slot), describeSlot(slot, spec), currentCat, offered,
+                enchantable ? () -> openEnchantPicker(slot) : null,
+                spec != null ? () -> preset.slots().remove(slot) : null,
                 cat -> preset.slots().put(slot, PresetSlot.ofCategory(cat))));
+    }
+
+    /** One-line summary of what a slot is set to, for the Slot options header. */
+    private String describeSlot(int slot, PresetSlot spec) {
+        if (spec == null) {
+            return "not managed";
+        }
+        if (spec.isBlank()) {
+            return "keep empty";
+        }
+        if (spec.isCategory()) {
+            return "Any " + spec.category().label();
+        }
+        ItemStack stack = presetStack(slot);
+        return stack.isEmpty() ? String.valueOf(spec.itemId()) : stack.getHoverName().getString();
     }
 
     /**
@@ -365,145 +438,13 @@ public final class PresetEditorScreen extends Screen {
      */
     private void pollClearKey(int mouseX, int mouseY) {
         boolean down = InputConstants.isKeyDown(Minecraft.getInstance().getWindow(), KEY_F);
-        if (down && !clearKeyHeld) {
+        if (down && !clearKeyHeld && !(nameBox != null && nameBox.isFocused())) {
             int slot = hoveredSlot(mouseX, mouseY);
             if (slot >= 0 && preset.slots().containsKey(slot)) {
                 preset.slots().remove(slot);
             }
         }
         clearKeyHeld = down;
-    }
-
-    // ---------------------------------------------------------------- amount prompt
-
-    private boolean promptOpen() {
-        return amountSlot >= 0;
-    }
-
-    /**
-     * Asks how many of {@code id} the slot should want, or records it outright when there is
-     * nothing to ask.
-     *
-     * <p>A single-stacking item has exactly one legal answer, so putting a box on screen to type
-     * "1" into would be a step that never changes the outcome.
-     */
-    private void openAmountPrompt(int slot, Identifier id, int initial) {
-        Item item = BuiltInRegistries.ITEM.getOptional(id).orElse(null);
-        int max = item == null ? 1 : item.getDefaultMaxStackSize();
-        if (max <= 1) {
-            preset.slots().put(slot, PresetSlot.of(id, 1, null));
-            return;
-        }
-        amountSlot = slot;
-        amountItemId = id;
-        amountMax = max;
-        amountStart = Math.max(1, Math.min(max, initial));
-    }
-
-    private void closeAmountPrompt(boolean apply) {
-        if (apply) {
-            preset.slots().put(amountSlot, PresetSlot.of(amountItemId, typedAmount(), null));
-        }
-        amountSlot = -1;
-        amountItemId = null;
-        amountBox = null;
-        promptWidgets.clear();
-        rebuild();
-    }
-
-    /**
-     * What is in the box, read as an amount.
-     *
-     * <p>Non-digits are dropped and the result is clamped rather than rejected, so there is no way
-     * to get an error message out of this: an empty box means one, and anything above the item's
-     * stack limit means that limit. Filtering keystrokes as they are typed would be the other
-     * approach, but rewriting the box's contents from inside its own change callback re-enters it.
-     */
-    private int typedAmount() {
-        if (amountBox == null) {
-            return amountStart;
-        }
-        StringBuilder digits = new StringBuilder();
-        for (char c : amountBox.getValue().toCharArray()) {
-            if (c >= '0' && c <= '9') {
-                digits.append(c);
-            }
-        }
-        if (digits.isEmpty()) {
-            return 1;
-        }
-        try {
-            return Math.max(1, Math.min(amountMax, Integer.parseInt(digits.toString())));
-        } catch (NumberFormatException overflow) {
-            // More digits than an int holds; the intent was clearly "lots".
-            return amountMax;
-        }
-    }
-
-    private int promptLeft() {
-        return this.width / 2 - PROMPT_W / 2;
-    }
-
-    private int promptTop() {
-        return this.height / 2 - PROMPT_H / 2;
-    }
-
-    private void buildAmountPrompt() {
-        // Everything underneath goes inert. Vanilla draws an inactive widget greyed out, which is
-        // half the dimming for free, and it means a click landing outside the panel does nothing
-        // rather than quietly editing the slot behind it.
-        for (GuiEventListener child : children()) {
-            if (child instanceof AbstractWidget widget) {
-                widget.active = false;
-            }
-        }
-
-        promptWidgets.clear();
-        int px = promptLeft();
-        int py = promptTop();
-
-        amountBox = new EditBox(this.font, px + 12, py + 44, PROMPT_W - 24, 20,
-                Component.literal("Amount"));
-        // Three digits covers vanilla's 64 and any modded limit short of a thousand.
-        amountBox.setMaxLength(3);
-        amountBox.setValue(Integer.toString(amountStart));
-        amountBox.moveCursorToEnd(false);
-        promptWidgets.add(addWidget(amountBox));
-
-        int buttonW = (PROMPT_W - 32) / 2;
-        promptWidgets.add(addWidget(Button.builder(Component.literal("Cancel"),
-                        b -> closeAmountPrompt(false))
-                .bounds(px + 12, py + 72, buttonW, 20).build()));
-        promptWidgets.add(addWidget(Button.builder(Component.literal("Set"),
-                        b -> closeAmountPrompt(true))
-                .bounds(px + PROMPT_W - 12 - buttonW, py + 72, buttonW, 20).build()));
-
-        setInitialFocus(amountBox);
-    }
-
-    /**
-
-     */
-    private void drawAmountPrompt(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float delta) {
-        graphics.fill(0, 0, this.width, this.height, 0xC0000000);
-
-        int px = promptLeft();
-        int py = promptTop();
-        graphics.fill(px, py, px + PROMPT_W, py + PROMPT_H, 0xF0100010);
-        graphics.outline(px - 1, py - 1, PROMPT_W + 2, PROMPT_H + 2, markingColour());
-
-        ItemStack icon = BuiltInRegistries.ITEM.getOptional(amountItemId)
-                .map(item -> new ItemStack(item, 1))
-                .orElse(ItemStack.EMPTY);
-        Render.item(graphics, icon, px + 12, py + 12);
-        if (!icon.isEmpty()) {
-            graphics.text(this.font, icon.getHoverName().getString(), px + 36, py + 16, 0xFFFFFFFF, true);
-        }
-        graphics.text(this.font, "How many? 1 to " + amountMax, px + 12, py + 32, 0xFF9AA0A6, false);
-
-        for (AbstractWidget widget : promptWidgets) {
-            widget.extractRenderState(graphics, mouseX, mouseY, delta);
-        }
     }
 
     /** The preset slot the mouse is currently over, or -1. */
@@ -564,7 +505,7 @@ public final class PresetEditorScreen extends Screen {
         super.extractRenderState(graphics, mouseX, mouseY, delta);
 
         graphics.text(this.font, isNew ? "Create Preset" : "Edit Preset", this.width / 2 - 40, 14, 0xFFFFFFFF, true);
-        graphics.text(this.font, "Preset Name:", this.width / 2 - 100, 24, 0xFF9AA0A6, false);
+        graphics.text(this.font, "Preset Name:", this.width / 2 - 100, 24, Theme.current().accent(), false);
 
         drawSlotContents(graphics, InvSlots.OFFHAND);
         for (int armor : ARMOR_DISPLAY_ORDER) {
@@ -574,20 +515,14 @@ public final class PresetEditorScreen extends Screen {
             drawSlotContents(graphics, i);
         }
 
-        // Sits below the capture row rather than across it.
-        // Centred in the gap between the capture row and the Save/Cancel row, both of which
-        // are anchored to the screen bottom — so measure from there, not from the grid.
-        int captureBottom = gridTop + 3 * SLOT + 8 + SLOT + 16 + 20;
-        int hintY = (captureBottom + (this.height - 28)) / 2 - 8;
-
-        if (promptOpen()) {
-            // F would otherwise clear whatever slot the cursor happens to sit over, and a tooltip
-            // would surface from under the panel.
-            drawAmountPrompt(graphics, mouseX, mouseY, delta);
-        } else {
-            pollClearKey(mouseX, mouseY);
-            drawHoverTooltip(graphics, mouseX, mouseY);
+        if (listeningForHotkey) {
+            // The button itself reads "Key: ..." while waiting; its tooltip explains the keys.
+            pollHotkey();
+            return;
         }
+
+        pollClearKey(mouseX, mouseY);
+        drawHoverTooltip(graphics, mouseX, mouseY);
     }
 
     /**
@@ -607,20 +542,14 @@ public final class PresetEditorScreen extends Screen {
         // tooltip is the one place it can be surfaced without permanent clutter.
         if (spec == null) {
             lines.add(Component.literal("Unmanaged slot").withStyle(ChatFormatting.GRAY));
-            if (!InvSlots.isArmor(hovered)) {
-                lines.add(Component.literal("Right-click for categories")
-                        .withStyle(ChatFormatting.DARK_GRAY));
-            }
+            lines.add(Component.literal("Right-click for options").withStyle(ChatFormatting.DARK_GRAY));
             Render.componentTooltip(graphics, this.font, lines, mouseX, mouseY);
             return;
         }
 
         if (spec.isBlank()) {
             lines.add(Component.literal("Kept empty").withStyle(ChatFormatting.GRAY));
-            if (!InvSlots.isArmor(hovered)) {
-                lines.add(Component.literal("Right-click to set a category")
-                        .withStyle(ChatFormatting.DARK_GRAY));
-            }
+            lines.add(Component.literal("Right-click for options").withStyle(ChatFormatting.DARK_GRAY));
             lines.add(Component.literal("F to remove").withStyle(ChatFormatting.DARK_GRAY));
             Render.componentTooltip(graphics, this.font, lines, mouseX, mouseY);
             return;
@@ -633,10 +562,11 @@ public final class PresetEditorScreen extends Screen {
 
         if (spec.isCategory()) {
             lines.add(Component.literal("Any " + spec.category().label()));
-            lines.add(Component.literal("Accepts any item of this kind")
+            lines.add(Component.literal(InvSlots.isArmor(hovered)
+                            ? "Accepts any " + armorPieceName(hovered) + " you can wear"
+                            : "Accepts any item of this kind")
                     .withStyle(ChatFormatting.DARK_GRAY));
-            lines.add(Component.literal("Right-click to change category")
-                    .withStyle(ChatFormatting.DARK_GRAY));
+            lines.add(Component.literal("Right-click for options").withStyle(ChatFormatting.DARK_GRAY));
             lines.add(Component.literal("F to remove").withStyle(ChatFormatting.DARK_GRAY));
             Render.componentTooltip(graphics, this.font, lines, mouseX, mouseY);
             return;
@@ -649,16 +579,21 @@ public final class PresetEditorScreen extends Screen {
         for (String line : req.describeLines()) {
             lines.add(Component.literal(line).withStyle(ChatFormatting.GRAY));
         }
-        if (EnchantCatalog.isEnchantable(spec.itemId())) {
-            lines.add(Component.literal("Right-click to set enchantments")
-                    .withStyle(ChatFormatting.DARK_GRAY));
-        } else if (!InvSlots.isArmor(hovered)) {
-            lines.add(Component.literal("Right-click to set a category")
-                    .withStyle(ChatFormatting.DARK_GRAY));
-        }
+        lines.add(Component.literal(EnchantCatalog.isEnchantable(spec.itemId())
+                        ? "Right-click for options and enchantments" : "Right-click for options")
+                .withStyle(ChatFormatting.DARK_GRAY));
         lines.add(Component.literal("F to remove").withStyle(ChatFormatting.DARK_GRAY));
 
         Render.componentTooltip(graphics, this.font, lines, mouseX, mouseY);
+    }
+
+    private static String armorPieceName(int slot) {
+        return switch (slot) {
+            case 39 -> "helmet";
+            case 38 -> "chestplate";
+            case 37 -> "leggings";
+            default -> "boots";
+        };
     }
 
     /** Drawn after super so icons sit on top of the slot buttons. */
@@ -672,8 +607,8 @@ public final class PresetEditorScreen extends Screen {
             return;
         }
         if (spec.isBlank()) {
-            // A dot reads as "deliberately nothing", distinct from "not managed".
-            graphics.fill(p[0] + 6, p[1] + 6, p[0] + 10, p[1] + 10, 0xFF8899AA);
+            // Same marked glass pane as the "Keep empty" choice in the item browser.
+            Render.keepEmptyMarker(graphics, p[0], p[1]);
             return;
         }
         // Centre the 16px icon inside the slot interior, leaving vanilla's 1px margin.
@@ -694,88 +629,13 @@ public final class PresetEditorScreen extends Screen {
      */
     private void drawCategoryMarking(GuiGraphicsExtractor graphics, int x, int y, ItemCategory cat) {
         int inner = Render.SLOT_INNER;
-        int colour = markingColour();
+        int colour = Render.markingColour();
 
         // Coloured frame, distinct from the plain dark border on ordinary slots.
         graphics.outline(x - 1, y - 1, inner + 2, inner + 2, colour);
 
         // Short code, bottom-left, where a stack count never sits.
-        drawTinyText(graphics, cat.shortCode(), x + 2, y + inner - 7, colour);
-    }
-
-    /**
-     * A 3x5 pixel alphabet, drawn with {@code fill}.
-     *
-     * <p>Minecraft's font renders at one size only, and shrinking it needs a pose transform.
-     * Painting the glyphs as pixels instead keeps the marker genuinely small — about half the
-     * height of the normal font — and uses nothing beyond the fill call already relied on
-     * elsewhere in this screen.
-     *
-     * <p>Each entry is five rows of three bits, top to bottom, high bit leftmost.
-     */
-    private static final java.util.Map<Character, int[]> TINY_GLYPHS = java.util.Map.of(
-            'A', new int[]{0b111, 0b101, 0b111, 0b101, 0b101},
-            'B', new int[]{0b110, 0b101, 0b110, 0b101, 0b110},
-            'C', new int[]{0b011, 0b100, 0b100, 0b100, 0b011},
-            'F', new int[]{0b111, 0b100, 0b110, 0b100, 0b100},
-            'M', new int[]{0b101, 0b111, 0b111, 0b101, 0b101},
-            'S', new int[]{0b011, 0b100, 0b010, 0b001, 0b110},
-            'T', new int[]{0b111, 0b010, 0b010, 0b010, 0b010},
-            'W', new int[]{0b101, 0b101, 0b111, 0b111, 0b101});
-
-    /**
-     * Draws {@code text} at 3x5 pixels per character, one pixel of spacing between.
-     *
-     * <p>Each glyph is painted twice: once in black at every one-pixel offset around it, then in
-     * the real colour on top. At this size an unoutlined glyph disappears against a busy item
-     * texture, and the usual drop shadow is not enough — the outline surrounds it completely.
-     */
-    private static void drawTinyText(GuiGraphicsExtractor graphics, String text,
-                                     int x, int y, int colour) {
-        drawTinyPass(graphics, text, x, y, 0xFF000000, true);
-        drawTinyPass(graphics, text, x, y, colour, false);
-    }
-
-    /** One pass of {@link #drawTinyText}; {@code outline} spreads each pixel into its neighbours. */
-    private static void drawTinyPass(GuiGraphicsExtractor graphics, String text,
-                                     int x, int y, int colour, boolean outline) {
-        int cursor = x;
-        for (char ch : text.toCharArray()) {
-            int[] rows = TINY_GLYPHS.get(Character.toUpperCase(ch));
-            if (rows == null) {
-                cursor += 4;
-                continue;
-            }
-            for (int row = 0; row < rows.length; row++) {
-                for (int col = 0; col < 3; col++) {
-                    if ((rows[row] & (1 << (2 - col))) == 0) {
-                        continue;
-                    }
-                    int px = cursor + col;
-                    int py = y + row;
-                    if (outline) {
-                        for (int dx = -1; dx <= 1; dx++) {
-                            for (int dy = -1; dy <= 1; dy++) {
-                                graphics.fill(px + dx, py + dy, px + dx + 1, py + dy + 1, colour);
-                            }
-                        }
-                    } else {
-                        graphics.fill(px, py, px + 1, py + 1, colour);
-                    }
-                }
-            }
-            cursor += 4;
-        }
-    }
-
-    /**
-     * Marking colour: the player's chosen accent, except on the Grey palette where the accent is
-     * close enough to the slot fill to disappear. White stands off it cleanly and still reads as
-     * "no colour chosen".
-     */
-    private static int markingColour() {
-        Theme.Palette p = Theme.current();
-        return "Grey".equals(p.name()) ? 0xFFFFFFFF : p.accent();
+        Render.tinyText(graphics, cat.shortCode(), x + 2, y + inner - 7, colour);
     }
 
     private ItemStack presetStack(int index) {
@@ -795,7 +655,7 @@ public final class PresetEditorScreen extends Screen {
             return ItemStack.EMPTY;
         }
         ItemStack stack = BuiltInRegistries.ITEM.getOptional(spec.itemId())
-                .map(item -> new ItemStack(item, Math.max(1, spec.count())))
+                .map(item -> new ItemStack(item, 1))
                 .orElse(ItemStack.EMPTY);
         // The preset stores a requirement, not real enchantments, so there is nothing for the
         // renderer to glint off. Forcing the override makes a slot that demands enchantments
@@ -828,8 +688,8 @@ public final class PresetEditorScreen extends Screen {
     private void revert() {
         Preset restored = Preset.fromJson(original);
         preset.setName(restored.name());
-        preset.setMatchMode(restored.matchMode());
         preset.setAutoSort(restored.autoSort());
+        preset.setHotkey(restored.hotkey());
         // Read the icon from the snapshot rather than the restored preset: effectiveIcon() falls
         // back to the first filled slot, which would turn a derived icon into an explicit one.
         preset.setIcon(original.has("icon") ? Identifier.tryParse(original.get("icon").getAsString()) : null);
@@ -849,9 +709,10 @@ public final class PresetEditorScreen extends Screen {
      */
     @Override
     public void onClose() {
-        if (promptOpen()) {
-            // Escape backs out of the panel rather than the whole editor.
-            closeAmountPrompt(false);
+        if (listeningForHotkey) {
+            // Escape while choosing a key cancels the choice, not the whole editor.
+            listeningForHotkey = false;
+            rebuild();
             return;
         }
         if (!hasUnsavedChanges()) {
@@ -860,7 +721,7 @@ public final class PresetEditorScreen extends Screen {
         }
 
         Minecraft mc = Minecraft.getInstance();
-        mc.gui.setScreen(new ConfirmScreen(
+        mc.gui.setScreen(new ThemedConfirmScreen(
                 discard -> {
                     if (discard) {
                         revert();

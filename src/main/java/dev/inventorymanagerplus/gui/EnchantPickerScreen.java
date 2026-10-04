@@ -90,40 +90,40 @@ public final class EnchantPickerScreen extends Screen {
                 break;
             }
             EnchantCatalog.Entry entry = matches.get(index);
-            addRenderableWidget(Button.builder(Component.literal(rowLabel(entry)), b -> {
+            addRenderableWidget(ThemedButton.create(Component.literal(rowLabel(entry)), b -> {
                 cycle(entry);
                 rebuild();
             }).bounds(this.width / 2 - 150, LIST_TOP + i * ROW_H, 300, 18).build());
         }
 
         int navY = this.height - BOTTOM_RESERVED + 4;
-        addRenderableWidget(Button.builder(Component.literal("< Prev"), b -> {
+        addRenderableWidget(ThemedButton.create(Component.literal("< Prev"), b -> {
             if (page > 0) {
                 page--;
                 rebuild();
             }
         }).bounds(this.width / 2 - 150, navY, 60, 20).build());
 
-        addRenderableWidget(Button.builder(Component.literal("Clear all"), b -> {
+        addRenderableWidget(ThemedButton.create(Component.literal("Clear all"), b -> {
             working.levels().clear();
             working.setMode(EnchantRequirement.Mode.IGNORE);
             rebuild();
         }).bounds(this.width / 2 - 45, navY, 90, 20).build());
 
-        addRenderableWidget(Button.builder(Component.literal("Next >"), b -> {
+        addRenderableWidget(ThemedButton.create(Component.literal("Next >"), b -> {
             if ((page + 1) * rows < matches.size()) {
                 page++;
                 rebuild();
             }
         }).bounds(this.width / 2 + 90, navY, 60, 20).build());
 
-        addRenderableWidget(Button.builder(Component.literal("Done"), b -> {
+        addRenderableWidget(ThemedButton.create(Component.literal("Done"), b -> {
             normalise();
             onDone.accept(working);
             onClose();
         }).bounds(this.width / 2 - 104, this.height - 28, 100, 20).build());
 
-        addRenderableWidget(Button.builder(Component.literal("Cancel"), b -> onClose())
+        addRenderableWidget(ThemedButton.create(Component.literal("Cancel"), b -> onClose())
                 .bounds(this.width / 2 + 4, this.height - 28, 100, 20).build());
     }
 

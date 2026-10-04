@@ -1,29 +1,50 @@
+Inventory Manager+
 Copyright (c) 2026 Syzy3
+All rights reserved.
 
-All Rights Reserved.
+This license covers the Inventory Manager+ mod, including its compiled files,
+source code, textures and other assets (together, "the Mod").
 
-This software and its source code are the property of Syzy3.
+1. Permitted use
 
-You may download and use this mod for personal, non-commercial play.
+   You may, without asking:
 
-You may NOT, without prior written permission from Syzy3:
+   a) download the Mod from its official pages (https://modrinth.com/mod/inventorymanagerplus
+      or a release published by Syzy3) and use it to play Minecraft;
+   b) record, stream and publish videos or screenshots showing the Mod, including
+      monetized content;
+   c) include the Mod in a modpack, as long as the modpack downloads the Mod from
+      its official Modrinth page and does not contain a copy of the Mod's files
+      (for example, a Modrinth .mrpack that references the Modrinth project);
+   d) read the source code for learning or reference, and send suggested changes
+      to Syzy3 (for example, as a pull request). By sending a change you agree that
+      Syzy3 may use it in the Mod under these same terms.
 
-  - redistribute, republish, or upload this mod or any part of it to any
-    website, platform, mod repository, modpack, or launcher, including but
-    not limited to Modrinth and CurseForge;
-  - sell this mod, or offer it in exchange for money, currency, or any other
-    consideration, whether directly or through advertising, donations, or
-    reward-gated downloads;
-  - copy, modify, translate, decompile, or create derivative works based on
-    this mod or its source code;
-  - remove or alter this notice, the author credit, or any identifying
-    information contained in this mod.
+2. Not permitted without written permission from Syzy3
 
-Inclusion in a modpack requires prior written permission from Syzy3.
+   a) Reuploading or redistributing the Mod, or any part of it, anywhere other
+      than its official pages, including other websites, mod hosts and modpacks
+      that bundle a copy of the Mod's files.
+   b) Selling the Mod, or charging for access to it, including putting downloads
+      behind a paywall, ad link or reward.
+   c) Publishing modified versions of the Mod, or other works copied from its
+      source code or assets.
+   d) Removing or changing this notice or the author credit.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHOR BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
-ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
-WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+   You may modify the Mod for your own private use as long as you do not share
+   the modified version.
+
+3. No warranty
+
+   THE MOD IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
+   INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+   PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHOR BE LIABLE
+   FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+   TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE MOD OR THE
+   USE OR OTHER DEALINGS IN THE MOD. THIS INCLUDES ANY KICK, BAN OR OTHER ACTION
+   TAKEN AGAINST YOU BY A SERVER FOR USING THE MOD.
+
+For permission requests, contact Syzy3 through the Modrinth project page.
+
+Minecraft is a trademark of Mojang Synergies AB. This Mod is not an official
+Minecraft product and is not approved by or associated with Mojang or Microsoft.

@@ -7,6 +7,7 @@ import dev.inventorymanagerplus.inventory.CreativeSupplier;
 import dev.inventorymanagerplus.inventory.InventorySnapshot;
 import dev.inventorymanagerplus.preset.Preset;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.screens.inventory.CreativeModeInventoryScreen;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.item.ItemStack;
 
@@ -40,6 +41,14 @@ public final class AutoSortManager {
 
     private int tickCounter;
     private long lastFingerprint = Long.MIN_VALUE;
+    /** Inventory the last batch of corrections was planned from. */
+    private long lastSubmittedFrom = Long.MIN_VALUE;
+    /**
+     * Set when a batch of corrections changed nothing (the server refused it, or the game won't
+     * allow it). Auto Sort then waits for the inventory to change instead of re-sending the same
+     * clicks every half second.
+     */
+    private long stuckAt = Long.MIN_VALUE;
     private int pauseTicks;
     private boolean temporarilyDisabled;
 
@@ -60,12 +69,17 @@ public final class AutoSortManager {
             pauseTicks--;
         }
 
-        if (!Config.get().autoSortEnabled || isPaused()) {
+        if (isPaused()) {
             return;
         }
 
         LocalPlayer player = mc.player;
-        if (player == null || player.isDeadOrDying()) {
+        if (player == null || player.isDeadOrDying() || player.isSpectator()) {
+            return;
+        }
+
+        // Mid-eat, mid-draw or holding something on the cursor: wait rather than interrupt.
+        if (player.isUsingItem() || !player.containerMenu.getCarried().isEmpty()) {
             return;
         }
 
@@ -75,7 +89,10 @@ public final class AutoSortManager {
         }
 
         // A container is open, or the player is in a menu where clicks would land elsewhere.
-        if (!player.isCreative() && player.containerMenu != player.inventoryMenu) {
+        // In Creative the Creative inventory screen swaps in its own menu, so that one screen is
+        // allowed; a chest, furnace or any other container still pauses Auto Sort.
+        if (player.containerMenu != player.inventoryMenu
+                && !(player.isCreative() && mc.gui.screen() instanceof CreativeModeInventoryScreen)) {
             return;
         }
 
@@ -96,30 +113,42 @@ public final class AutoSortManager {
         tickCounter = 0;
 
         long fingerprint = InventorySnapshot.fingerprint(player);
-        if (fingerprint == lastFingerprint) {
-            return; // nothing moved since the last check
+        if (fingerprint == lastFingerprint || fingerprint == stuckAt) {
+            return; // nothing moved since the last check, or nothing we can do about it
         }
         lastFingerprint = fingerprint;
+        if (fingerprint == lastSubmittedFrom) {
+            // Our last corrections were sent from exactly this inventory and it hasn't changed,
+            // so they didn't take. Sending them again would just repeat forever.
+            stuckAt = fingerprint;
+            return;
+        }
 
         // In Creative with auto-get on, top up anything the preset wants but the player lacks,
         // every cycle. Cheap in the steady state: supplyMissing skips items already owned, so once
         // the layout is satisfied this sends nothing at all. It only does work after something
         // actually goes missing — which is exactly when you want it to.
+        int created = 0;
         if (player.isCreative() && Config.get().creativeAcquisition) {
-            CreativeSupplier.supplyMissing(mc, preset);
+            created = CreativeSupplier.supplyMissing(mc, preset);
         }
 
         ItemStack[] snapshot = InventorySnapshot.take(player);
-        var plan = ArrangementPlanner.plan(snapshot, preset, CreativeSupplier.registriesOf(mc));
+        var plan = ArrangementPlanner.plan(snapshot, preset,
+                Config.get().autoSortDrop);
         if (plan.isNoOp()) {
-            // Items may still have been created above, so do not trust the fingerprint taken
-            // before that ran.
-            lastFingerprint = Long.MIN_VALUE;
+            // Nothing to do: keep this fingerprint so the next check is a cheap "unchanged". If
+            // Creative just created items, though, the inventory has moved on since it was taken.
+            if (created > 0) {
+                lastFingerprint = Long.MIN_VALUE;
+            }
+            lastSubmittedFrom = Long.MIN_VALUE;
             return;
         }
 
         var limited = plan.moves().subList(0, Math.min(plan.moves().size(), Config.get().maxMovesPerAutoSortCycle));
         InventoryManagerPlus.ops().submit(limited, preset.name(), false);
+        lastSubmittedFrom = fingerprint;
 
         // Invalidate: the next cycle must re-read rather than trust this fingerprint.
         lastFingerprint = Long.MIN_VALUE;
@@ -129,6 +158,8 @@ public final class AutoSortManager {
     public void reset() {
         tickCounter = 0;
         lastFingerprint = Long.MIN_VALUE;
+        lastSubmittedFrom = Long.MIN_VALUE;
+        stuckAt = Long.MIN_VALUE;
         pauseTicks = 0;
         temporarilyDisabled = false;
     }

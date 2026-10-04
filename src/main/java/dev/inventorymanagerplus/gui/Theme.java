@@ -40,4 +40,51 @@ public final class Theme {
     public static void cycle() {
         Config.get().accentIndex = Math.floorMod(Config.get().accentIndex + 1, ALL.length);
     }
+
+    // ---- colours derived from the accent ----------------------------------------------------
+    // Everything the mod draws takes its colour from the current palette's accent, so picking a
+    // colour in Settings recolours buttons, slots and borders together.
+
+    private static final int DARK = 0xFF101010;
+
+    /** Blends two colours: t = 0 gives {@code a}, t = 1 gives {@code b}. Result is opaque. */
+    public static int mix(int a, int b, float t) {
+        int r = Math.round(((a >> 16) & 0xFF) * (1 - t) + ((b >> 16) & 0xFF) * t);
+        int g = Math.round(((a >> 8) & 0xFF) * (1 - t) + ((b >> 8) & 0xFF) * t);
+        int bl = Math.round((a & 0xFF) * (1 - t) + (b & 0xFF) * t);
+        return 0xFF000000 | (r << 16) | (g << 8) | bl;
+    }
+
+    public static int buttonFill(boolean active, boolean hovered) {
+        if (!active) {
+            return 0xFF262626;
+        }
+        return mix(current().accent(), DARK, hovered ? 0.50f : 0.72f);
+    }
+
+    public static int buttonBorder(boolean active, boolean hovered) {
+        if (!active) {
+            return 0xFF3A3A3A;
+        }
+        return hovered ? highlight() : mix(current().accent(), 0xFF000000, 0.35f);
+    }
+
+    /** Fill for a preset slot square. Slots the preset uses are a little brighter. */
+    public static int slotFill(boolean managed, boolean hovered) {
+        float t = hovered ? 0.45f : managed ? 0.64f : 0.84f;
+        return mix(current().accent(), DARK, t);
+    }
+
+    /** Border for cards and panels that aren't highlighted. */
+    public static int border() {
+        return mix(current().accent(), 0xFF000000, 0.55f);
+    }
+
+    /**
+     * The bright edge used for hover and markings: the accent, except on Grey where the accent is
+     * too close to the fills to stand out, so white is used instead.
+     */
+    public static int highlight() {
+        return "Grey".equals(current().name()) ? 0xFFFFFFFF : current().accent();
+    }
 }

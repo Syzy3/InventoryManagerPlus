@@ -29,11 +29,11 @@ public final class InventorySnapshot {
     }
 
     /**
-     * Order-sensitive fingerprint. Allocation-free and does not touch data components, so it costs
-     * about the same as iterating a 41-element array.
+     * Order-sensitive fingerprint of every slot: item, item details and count.
      *
-     * <p>Deliberately ignores component details: a sword losing durability should not be treated as
-     * an inventory change worth re-planning for.
+     * <p>Item details are included so that two diamond swords trading places is seen as a change
+     * when only one of them has the enchantment a preset asks for. That also means a tool losing
+     * durability counts as a change, which only costs one extra (empty) plan.
      */
     public static long fingerprint(LocalPlayer player) {
         Inventory inv = player.getInventory();
@@ -41,7 +41,7 @@ public final class InventorySnapshot {
         long h = 1125899906842597L;
         for (int i = 0; i < size; i++) {
             ItemStack s = inv.getItem(i);
-            int itemHash = s.isEmpty() ? 0 : System.identityHashCode(s.getItem());
+            int itemHash = s.isEmpty() ? 0 : ItemStack.hashItemAndComponents(s);
             h = 31 * h + itemHash;
             h = 31 * h + s.getCount();
         }

@@ -1,13 +1,10 @@
 package dev.inventorymanagerplus.inventory;
 
-import com.mojang.serialization.JsonOps;
 import dev.inventorymanagerplus.config.Config;
 import dev.inventorymanagerplus.preset.EnchantRequirement;
-import dev.inventorymanagerplus.preset.MatchMode;
 import dev.inventorymanagerplus.preset.Preset;
 import dev.inventorymanagerplus.preset.PresetSlot;
 import net.minecraft.core.HolderLookup;
-import net.minecraft.core.component.DataComponentPatch;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
@@ -15,7 +12,6 @@ import net.minecraft.world.item.enchantment.ItemEnchantments;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.MultiPlayerGameMode;
 import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.resources.RegistryOps;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 
@@ -71,7 +67,7 @@ public final class CreativeSupplier {
             // Each requirement needs its own stack. Claiming the one it will use stops a second
             // slot asking for the same item from seeing it as already satisfied — which is why a
             // preset wanting four totems used to get exactly one.
-            int owned = findUnclaimedMatch(snapshot, spec, preset.matchMode(), registries, claimed);
+            int owned = findUnclaimedMatch(snapshot, preset, spec, target, claimed);
             if (owned >= 0) {
                 claimed.add(owned);
                 continue;
@@ -90,6 +86,12 @@ public final class CreativeSupplier {
             }
 
             ItemStack stack = buildStack(item, spec, registries);
+            // Category slots can't be created, and a requirement the game can't build (an
+            // enchantment id that no longer exists, say) would produce a stack the matcher then
+            // rejects. Writing either would only fill the inventory with things nobody asked for.
+            if (stack.isEmpty() || !ItemMatcher.matches(spec, stack, target)) {
+                continue;
+            }
             int menuSlot = InvSlots.toMenuSlot(player.inventoryMenu, player, writeSlot);
             if (menuSlot < 0) {
                 continue;
@@ -110,11 +112,19 @@ public final class CreativeSupplier {
      * Finds a matching stack that no earlier requirement has already spoken for, or -1 if every
      * match is claimed. Claiming matters because a preset may want the same item in several slots.
      */
-    private static int findUnclaimedMatch(ItemStack[] inv, PresetSlot spec, MatchMode mode,
-                                          HolderLookup.Provider registries, java.util.Set<Integer> claimed) {
+    private static int findUnclaimedMatch(ItemStack[] inv, Preset preset, PresetSlot spec, int target,
+                                          java.util.Set<Integer> claimed) {
         for (int i = 0; i < inv.length; i++) {
-            if (!claimed.contains(i) && InvSlots.isManageable(i)
-                    && ItemMatcher.matches(spec, inv[i], mode, registries)) {
+            if (claimed.contains(i) || !InvSlots.isManageable(i)) {
+                continue;
+            }
+            // Worn armour and the off-hand item only count as owned when the preset manages that
+            // slot. The planner never takes them otherwise, so counting them here would mean the
+            // chestplate you're wearing stops a preset from getting its own.
+            if (i >= InvSlots.STORAGE_SIZE && i != target && !preset.manages(i)) {
+                continue;
+            }
+            if (ItemMatcher.matches(spec, inv[i], target)) {
                 return i;
             }
         }
@@ -124,14 +134,9 @@ public final class CreativeSupplier {
     /**
      * Chooses where to write a newly created stack.
      *
-     * <p>Order: the preset's own target slot if free, then any empty unmanaged slot, and finally —
-     * only when the inventory is full — the target slot itself, overwriting what is there.
-     *
-     * <p>That last fallback is the one exception to this mod's never-destroy rule, and it is
-     * limited to Creative, to a slot the preset explicitly manages, and to the case where there is
-     * nowhere else to put anything. In Creative the displaced stack costs nothing to replace, and
-     * refusing would mean the preset silently fails to apply on a full inventory. Unmanaged slots
-     * are never overwritten, so nothing outside the preset's own layout can be lost.
+     * <p>Order: the preset's own target slot if free, then any empty unmanaged slot. With no empty
+     * slot the item is simply not created: overwriting would destroy whatever is there (which in
+     * Creative can still be a filled shulker box), and the mod never destroys items.
      */
     private static int pickWritableSlot(ItemStack[] inv, Preset preset, int preferred) {
         if (preferred < inv.length && inv[preferred].isEmpty()) {
@@ -142,7 +147,7 @@ public final class CreativeSupplier {
                 return i;
             }
         }
-        return preferred < inv.length && preset.manages(preferred) ? preferred : -1;
+        return -1;
     }
 
     private static ItemStack buildStack(Item item, PresetSlot spec, HolderLookup.Provider registries) {
@@ -151,13 +156,9 @@ public final class CreativeSupplier {
         if (spec.isCategory()) {
             return ItemStack.EMPTY;
         }
-        ItemStack stack = new ItemStack(item, Math.max(1, spec.count()));
-        if (spec.rawComponents() != null && registries != null) {
-            var ops = RegistryOps.create(JsonOps.INSTANCE, registries);
-            DataComponentPatch.CODEC.parse(ops, spec.rawComponents())
-                    .result()
-                    .ifPresent(stack::applyComponents);
-        }
+        // Presets no longer store an amount, so Creative hands over a full stack, the same as
+        // middle-clicking an item in the Creative menu.
+        ItemStack stack = new ItemStack(item, Math.max(1, item.getDefaultMaxStackSize()));
         applyRequiredEnchantments(stack, spec, registries);
         return stack;
     }

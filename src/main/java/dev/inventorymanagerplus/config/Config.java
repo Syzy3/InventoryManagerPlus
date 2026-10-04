@@ -1,7 +1,5 @@
 package dev.inventorymanagerplus.config;
 
-import dev.inventorymanagerplus.preset.MatchMode;
-
 /**
  * Plain data holder, serialised straight to JSON by Gson. Field names are the config keys, so
  * renaming a field silently resets it — add a migration instead if that ever becomes necessary.
@@ -20,9 +18,6 @@ public final class Config {
 
     // ---- Auto Sort -------------------------------------------------------------------------
 
-    /** Master switch. Presets can still be applied manually while this is off. */
-    public boolean autoSortEnabled = true;
-
     /**
      * How often Auto Sort compares the inventory against the active preset, in ticks.
      * 10 ticks (half a second) is far below human reaction time but 1/10th the cost of checking
@@ -33,9 +28,6 @@ public final class Config {
     /** Ticks to wait between two inventory operations. Keeps click packets from bursting. */
     public int operationCooldownTicks = 2;
 
-    /** Upper bound on moves queued from a single apply, as a runaway guard. */
-    public int maxMovesPerApply = 64;
-
     /**
      * Auto Sort only corrects this many slots per cycle, so a large disturbance is repaired
      * gradually rather than in one burst of packets.
@@ -44,8 +36,19 @@ public final class Config {
 
     // ---- Behaviour -------------------------------------------------------------------------
 
-    /** Default matching mode for newly created presets. */
-    public MatchMode defaultMatchMode = MatchMode.BASIC;
+    /**
+     * When applying a preset, items sitting in a slot marked empty are thrown on the ground
+     * (after first being stacked onto the same item elsewhere) instead of being moved to a free
+     * slot. Applies to Apply only; Auto Sort has its own switch below.
+     */
+    public boolean dropFromEmptySlots = false;
+
+    /**
+     * The same drop behaviour for Auto Sort. Separate and off by default: new pickups land in the
+     * first free slot, so if that slot is marked empty the item is thrown, picked back up and
+     * thrown again for as long as the player stands on it.
+     */
+    public boolean autoSortDrop = false;
 
     /** Ask before deleting a preset. */
     public boolean confirmDelete = true;
@@ -62,23 +65,22 @@ public final class Config {
      */
     public boolean pauseWhileInventoryOpen = true;
 
+    /**
+     * Id of the preset applied most recently: the one the Apply key and Auto Sort use. Saved so
+     * it is still the active preset after a restart. Null when none.
+     */
+    public String activePresetId = null;
+
     /** Show apply/toggle feedback on the action bar. */
     public boolean showStatusMessages = true;
 
     /** Index into {@link dev.inventorymanagerplus.gui.Theme}'s palette list. 0 = Grey. */
     public int accentIndex = 0;
 
-    /** GLFW key code bound to opening the menu. 90 = Z. */
-    public int openKeyCode = 90;
-
     Config sanitised() {
         autoSortIntervalTicks = clamp(autoSortIntervalTicks, 1, 200);
         operationCooldownTicks = clamp(operationCooldownTicks, 0, 40);
-        maxMovesPerApply = clamp(maxMovesPerApply, 1, 256);
         maxMovesPerAutoSortCycle = clamp(maxMovesPerAutoSortCycle, 1, 64);
-        if (defaultMatchMode == null) {
-            defaultMatchMode = MatchMode.BASIC;
-        }
         accentIndex = Math.max(0, accentIndex);
         return this;
     }

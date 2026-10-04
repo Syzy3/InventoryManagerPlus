@@ -91,6 +91,16 @@ public final class EnchantCatalog {
             put(m, "looting", 3);
             put(m, "sweeping_edge", 3);
             durable(m);
+        } else if (p.endsWith("_spear")) {
+            // Spears share the melee enchantments (no Sweeping Edge) and have Lunge of their own.
+            put(m, "sharpness", 5);
+            put(m, "smite", 5);
+            put(m, "bane_of_arthropods", 5);
+            put(m, "knockback", 2);
+            put(m, "fire_aspect", 2);
+            put(m, "looting", 3);
+            put(m, "lunge", 3);
+            durable(m);
         } else if (p.equals("mace")) {
             put(m, "density", 5);
             put(m, "breach", 4);

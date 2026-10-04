@@ -101,6 +101,14 @@ public final class Storage {
             }
         } catch (Exception e) {
             InventoryManagerPlus.LOGGER.error("Could not read presets.json", e);
+            // The next save would replace the file with whatever loaded (possibly nothing), so
+            // keep a copy of the original for the player to recover by hand.
+            try {
+                Files.copy(file, file.resolveSibling("presets.json.bak"), StandardCopyOption.REPLACE_EXISTING);
+                InventoryManagerPlus.LOGGER.error("A copy of the unreadable file was saved as presets.json.bak");
+            } catch (IOException copyError) {
+                InventoryManagerPlus.LOGGER.error("Could not back up presets.json", copyError);
+            }
         }
         return out;
     }

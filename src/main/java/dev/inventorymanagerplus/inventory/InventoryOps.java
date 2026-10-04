@@ -37,19 +37,31 @@ import java.util.List;
  */
 public final class InventoryOps {
 
+    /**
+     * Runaway guard only. A plan for even the fullest inventory is a few hundred steps at most,
+     * so this never cuts a real preset short.
+     */
+    private static final int SAFETY_CAP = 2000;
+
     private final Deque<ArrangementPlanner.Move> queue = new ArrayDeque<>();
     private int cooldown;
     private int abortedStreak;
     private String label = "";
     private boolean announceCompletion;
+    /** Runs once the queue has emptied and settled; used by Apply to check its work. */
+    private Runnable onDrained;
+    /** Inventory fingerprint taken when the queue was first put on hold, or MIN_VALUE if not held. */
+    private long heldFingerprint = Long.MIN_VALUE;
 
     public boolean isBusy() {
-        return !queue.isEmpty();
+        return !queue.isEmpty() || onDrained != null;
     }
 
     public void cancel() {
         queue.clear();
         cooldown = 0;
+        onDrained = null;
+        heldFingerprint = Long.MIN_VALUE;
     }
 
     /**
@@ -58,11 +70,19 @@ public final class InventoryOps {
      * leaves the inventory in a consistent state.
      */
     public void submit(List<ArrangementPlanner.Move> moves, String label, boolean announce) {
+        submit(moves, label, announce, null);
+    }
+
+    /**
+     * @param onDrained run once every move has been sent and the inventory has settled, instead
+     *                  of the completion message; it may submit more work
+     */
+    public void submit(List<ArrangementPlanner.Move> moves, String label, boolean announce,
+                       Runnable onDrained) {
         queue.clear();
-        int cap = Config.get().maxMovesPerApply;
         int n = 0;
         for (ArrangementPlanner.Move m : moves) {
-            if (n++ >= cap) {
+            if (n++ >= SAFETY_CAP) {
                 break;
             }
             queue.add(m);
@@ -70,11 +90,13 @@ public final class InventoryOps {
         this.label = label;
         this.announceCompletion = announce;
         this.abortedStreak = 0;
+        this.onDrained = onDrained;
+        this.heldFingerprint = Long.MIN_VALUE;
     }
 
     /** Called once per client tick. */
     public void tick(Minecraft mc) {
-        if (queue.isEmpty()) {
+        if (queue.isEmpty() && onDrained == null) {
             return;
         }
 
@@ -87,8 +109,14 @@ public final class InventoryOps {
 
         // Player died, changed dimension, or is otherwise mid-transition: the inventory we planned
         // against no longer exists.
-        if (player.isDeadOrDying()) {
+        if (player.isDeadOrDying() || player.isSpectator()) {
             cancel();
+            return;
+        }
+
+        // Swapping the held item mid-use would cancel eating, drawing a bow or blocking, and a
+        // click while something sits on the cursor would pick up or drop the wrong stack. Wait.
+        if (player.isUsingItem() || !player.containerMenu.getCarried().isEmpty()) {
             return;
         }
 
@@ -97,17 +125,41 @@ public final class InventoryOps {
         // reference the open container, so they stay safe even with a chest on screen.
         if (!player.isCreative() && player.containerMenu != player.inventoryMenu) {
             // Hold the queue rather than dropping it, so closing the chest resumes the work.
+            markHeld(player);
             return;
         }
 
         if (Config.get().pauseWhileInventoryOpen && mc.gui.screen() != null) {
             // The player has a screen open — most likely their own inventory, mid-rearrange.
             // Hold rather than fight them for control of the same slots.
+            markHeld(player);
             return;
+        }
+
+        // Resuming after a hold. Drops were planned against the inventory as it was before; if the
+        // player moved things around in the meantime, a planned drop could now hit an item they
+        // just put there. Swaps and merges are harmless to replay, drops are not, so stop.
+        if (heldFingerprint != Long.MIN_VALUE) {
+            boolean changed = InventorySnapshot.fingerprint(player) != heldFingerprint;
+            heldFingerprint = Long.MIN_VALUE;
+            if (changed && queue.stream().anyMatch(ArrangementPlanner.Move::isDrop)) {
+                cancel();
+                notifyPlayer(player, Component.literal("Inventory Manager+: inventory changed, stopped without dropping anything."));
+                return;
+            }
         }
 
         if (cooldown > 0) {
             cooldown--;
+            return;
+        }
+
+        if (queue.isEmpty()) {
+            // Every move has gone out and had its cooldown to land. Hand over to whoever
+            // asked to be told; that is how Apply re-checks the inventory and finishes off.
+            Runnable done = onDrained;
+            onDrained = null;
+            done.run();
             return;
         }
 
@@ -131,8 +183,14 @@ public final class InventoryOps {
 
         cooldown = Math.max(0, Config.get().operationCooldownTicks);
 
-        if (queue.isEmpty() && announceCompletion) {
+        if (queue.isEmpty() && onDrained == null && announceCompletion) {
             notifyPlayer(player, Component.literal("Inventory Manager+: applied " + label));
+        }
+    }
+
+    private void markHeld(LocalPlayer player) {
+        if (heldFingerprint == Long.MIN_VALUE) {
+            heldFingerprint = InventorySnapshot.fingerprint(player);
         }
     }
 
@@ -150,11 +208,24 @@ public final class InventoryOps {
     private boolean performSwap(Minecraft mc, LocalPlayer player, MultiPlayerGameMode gameMode,
                                 ArrangementPlanner.Move move) {
         if (player.isCreative()) {
-            return creativeSwap(player, gameMode, move);
+            if (move.isDrop()) {
+                return creativeDrop(player, gameMode, move);
+            }
+            return move.isMerge() ? creativeMerge(player, gameMode, move) : creativeSwap(player, gameMode, move);
         }
 
         AbstractContainerMenu menu = player.containerMenu;
         int containerId = menu.containerId;
+
+        if (move.isDrop()) {
+            // Same as pressing Ctrl+Q over the slot: throws the whole stack.
+            int slot = InvSlots.toMenuSlot(menu, player, move.from());
+            if (slot < 0 || player.getInventory().getItem(move.from()).isEmpty()) {
+                return false;
+            }
+            gameMode.handleContainerInput(containerId, slot, 1, ContainerInput.THROW, player);
+            return true;
+        }
 
         int fromMenu = InvSlots.toMenuSlot(menu, player, move.from());
         int toMenu = InvSlots.toMenuSlot(menu, player, move.to());
@@ -168,6 +239,19 @@ public final class InventoryOps {
         ItemStack dest = player.getInventory().getItem(move.to());
         if (source.isEmpty() && dest.isEmpty()) {
             return false;
+        }
+
+        if (move.isMerge()) {
+            // Pick up the donor stack, drop it on the target (vanilla adds as many as fit and
+            // keeps the rest on the cursor), then put the rest back where it came from. Same
+            // three clicks as a swap; the number-key shortcut is skipped because it never merges.
+            if (source.isEmpty()) {
+                return false;
+            }
+            gameMode.handleContainerInput(containerId, fromMenu, 0, ContainerInput.PICKUP, player);
+            gameMode.handleContainerInput(containerId, toMenu, 0, ContainerInput.PICKUP, player);
+            gameMode.handleContainerInput(containerId, fromMenu, 0, ContainerInput.PICKUP, player);
+            return true;
         }
 
         if (InvSlots.isHotbar(move.to())) {
@@ -223,6 +307,51 @@ public final class InventoryOps {
         player.getInventory().setItem(move.to(), source);
         gameMode.handleCreativeModeItemAdd(dest, fromMenu);
         gameMode.handleCreativeModeItemAdd(source, toMenu);
+        return true;
+    }
+
+    /**
+     * Creative version of a merge: moves as many items as fit from one stack onto a matching
+     * stack, using set-slot packets for the same reasons as {@link #creativeSwap}.
+     */
+    private boolean creativeMerge(LocalPlayer player, MultiPlayerGameMode gameMode,
+                                  ArrangementPlanner.Move move) {
+        int fromMenu = InvSlots.toMenuSlot(player.inventoryMenu, player, move.from());
+        int toMenu = InvSlots.toMenuSlot(player.inventoryMenu, player, move.to());
+        if (fromMenu < 0 || toMenu < 0) {
+            return false;
+        }
+        ItemStack source = player.getInventory().getItem(move.from()).copy();
+        ItemStack dest = player.getInventory().getItem(move.to()).copy();
+        if (source.isEmpty() || dest.isEmpty() || !ItemStack.isSameItemSameComponents(source, dest)) {
+            return false;
+        }
+        int n = Math.min(source.getCount(), dest.getMaxStackSize() - dest.getCount());
+        if (n <= 0) {
+            return false;
+        }
+        dest.grow(n);
+        source.shrink(n);
+        ItemStack rest = source.isEmpty() ? ItemStack.EMPTY : source;
+        player.getInventory().setItem(move.from(), rest);
+        player.getInventory().setItem(move.to(), dest);
+        gameMode.handleCreativeModeItemAdd(rest, fromMenu);
+        gameMode.handleCreativeModeItemAdd(dest, toMenu);
+        return true;
+    }
+
+    /** Creative version of a drop, done the way the Creative inventory screen throws items. */
+    private boolean creativeDrop(LocalPlayer player, MultiPlayerGameMode gameMode,
+                                 ArrangementPlanner.Move move) {
+        int menuSlot = InvSlots.toMenuSlot(player.inventoryMenu, player, move.from());
+        ItemStack stack = player.getInventory().getItem(move.from()).copy();
+        if (menuSlot < 0 || stack.isEmpty()) {
+            return false;
+        }
+        player.getInventory().setItem(move.from(), ItemStack.EMPTY);
+        player.drop(stack, true);
+        gameMode.handleCreativeModeItemDrop(stack);
+        gameMode.handleCreativeModeItemAdd(ItemStack.EMPTY, menuSlot);
         return true;
     }
 

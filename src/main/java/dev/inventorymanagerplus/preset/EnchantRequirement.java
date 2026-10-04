@@ -10,12 +10,7 @@ import java.util.Map;
 /**
  * An optional enchantment condition attached to a preset slot.
  *
- * <p>Deliberately independent of {@link MatchMode}. EXACT already compares the whole component
- * blob, which is all-or-nothing: it distinguishes a Sharpness V sword from a plain one, but it
- * cannot express "any Efficiency pickaxe, I don't care what level or what else is on it". That
- * middle ground is the useful one in practice, so it lives here instead.
- *
- * <p>Like {@link PresetSlot}, this stores enchantment <em>identifiers</em> rather than registry
+  * <p>Like {@link PresetSlot}, this stores enchantment <em>identifiers</em> rather than registry
  * objects. Presets are read from disk at client startup, long before the enchantment registry is
  * bound, so anything holding a live {@code Holder<Enchantment>} would blow up on load.
  */

@@ -21,25 +21,41 @@ public final class Preset {
     /** inventory slot index -> requirement. Sparse. Keys are validated against {@link dev.inventorymanagerplus.inventory.InvSlots}. */
     private final Map<Integer, PresetSlot> slots;
     private Identifier icon;
-    private MatchMode matchMode;
     private boolean autoSort;
+    /** Keyboard key (GLFW code) that applies this preset from anywhere in game; -1 for none. */
+    private int hotkey = -1;
 
     public Preset(String id, String name, Map<Integer, PresetSlot> slots,
-                  Identifier icon, MatchMode matchMode, boolean autoSort) {
+                  Identifier icon, boolean autoSort) {
         this.id = id;
         this.name = name;
         this.slots = new HashMap<>(slots);
         this.icon = icon;
-        this.matchMode = matchMode;
         this.autoSort = autoSort;
     }
 
     public static Preset createEmpty(String name) {
-        return new Preset(UUID.randomUUID().toString(), name, Map.of(), null, MatchMode.BASIC, false);
+        return new Preset(UUID.randomUUID().toString(), name, Map.of(), null, false);
     }
 
+    /**
+     * A copy with a new id and " (copy)" on the name. Auto Sort and the hotkey are not copied:
+     * only one preset can sort at a time, and one key should apply one preset.
+     */
     public Preset duplicate() {
-        return new Preset(UUID.randomUUID().toString(), name + " (copy)", slots, icon, matchMode, autoSort);
+        return new Preset(UUID.randomUUID().toString(), name + " (copy)", slots, icon, false);
+    }
+
+    public int hotkey() {
+        return hotkey;
+    }
+
+    public void setHotkey(int key) {
+        this.hotkey = key;
+    }
+
+    public boolean hasHotkey() {
+        return hotkey >= 0;
     }
 
     public String id() {
@@ -63,14 +79,6 @@ public final class Preset {
         return slots.containsKey(slot);
     }
 
-    public MatchMode matchMode() {
-        return matchMode;
-    }
-
-    public void setMatchMode(MatchMode m) {
-        this.matchMode = m;
-    }
-
     public boolean autoSort() {
         return autoSort;
     }
@@ -91,7 +99,7 @@ public final class Preset {
         for (int i = 0; i < 41; i++) {
             PresetSlot s = slots.get(i);
             if (s != null && !s.isBlank()) {
-                return s.itemId();
+                return s.isCategory() ? Identifier.tryParse(s.category().iconId()) : s.itemId();
             }
         }
         return null;
@@ -107,10 +115,12 @@ public final class Preset {
         JsonObject o = new JsonObject();
         o.addProperty("id", id);
         o.addProperty("name", name);
-        o.addProperty("matchMode", matchMode.name());
         o.addProperty("autoSort", autoSort);
         if (icon != null) {
             o.addProperty("icon", icon.toString());
+        }
+        if (hotkey >= 0) {
+            o.addProperty("hotkey", hotkey);
         }
         JsonArray arr = new JsonArray();
         slots.entrySet().stream()
@@ -128,14 +138,7 @@ public final class Preset {
         String id = o.has("id") ? o.get("id").getAsString() : UUID.randomUUID().toString();
         String name = o.has("name") ? o.get("name").getAsString() : "Unnamed";
 
-        MatchMode mode = MatchMode.BASIC;
-        if (o.has("matchMode")) {
-            try {
-                mode = MatchMode.valueOf(o.get("matchMode").getAsString());
-            } catch (IllegalArgumentException ignored) {
-                // Unknown mode from a newer version of the mod: fall back rather than lose the preset.
-            }
-        }
+        // Older saves carry a "matchMode" field; it no longer means anything and is ignored.
 
         boolean auto = o.has("autoSort") && o.get("autoSort").getAsBoolean();
         Identifier icon = o.has("icon") ? Identifier.tryParse(o.get("icon").getAsString()) : null;
@@ -151,9 +154,18 @@ public final class Preset {
                     continue;
                 }
                 int slot = entry.get("slot").getAsInt();
-                slots.put(slot, PresetSlot.fromJson(entry));
+                PresetSlot spec = PresetSlot.fromJson(entry);
+                // Armour (36-39) and the off-hand (40) never use "keep empty".
+                if (spec.isBlank() && slot >= 36) {
+                    continue;
+                }
+                slots.put(slot, spec);
             }
         }
-        return new Preset(id, name, slots, icon, mode, auto);
+        Preset preset = new Preset(id, name, slots, icon, auto);
+        if (o.has("hotkey")) {
+            preset.setHotkey(o.get("hotkey").getAsInt());
+        }
+        return preset;
     }
 }

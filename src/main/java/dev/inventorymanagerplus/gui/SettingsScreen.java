@@ -8,6 +8,7 @@ import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
@@ -34,11 +35,12 @@ public final class SettingsScreen extends Screen {
     private static final int FIRST_KEY = 32;
     private static final int LAST_KEY = 348;
     private static final int KEY_ESCAPE = 256;
+    private static final int KEY_BACKSPACE = 259;
 
     private final Screen parent;
     private final List<Button> themed = new ArrayList<>();
     /** True while waiting for the player to press the key they want. */
-    private boolean listening;
+    private KeyMapping listening;
 
     public SettingsScreen(Screen parent) {
         super(Component.literal("Inventory Manager+ Settings"));
@@ -58,18 +60,19 @@ public final class SettingsScreen extends Screen {
             save();
         });
 
-        add(Component.literal(listening ? "Open key: ..." : "Open key: " + keyName(Config.get().openKeyCode)),
-                right, y, 150, b -> {
-                    listening = true;
-                    rebuild();
-                });
+        // Reads the real key binding, the same one Options > Controls shows and edits, so the two
+        // screens can never disagree.
+        keyButton("Open key", ModKeys.OPEN_MENU, right, y);
 
         y += row;
 
-        add(Component.literal("Auto Sort: " + onOff(Config.get().autoSortEnabled)), x, y, 150, b -> {
-            Config.get().autoSortEnabled = !Config.get().autoSortEnabled;
+        add(Component.literal("Drop: " + onOff(Config.get().dropFromEmptySlots)), x, y, 150, b -> {
+            Config.get().dropFromEmptySlots = !Config.get().dropFromEmptySlots;
             save();
-        });
+        }).setTooltip(Tooltip.create(Component.literal(
+                "When you apply a preset, items in slots marked empty get stacked onto the same "
+                        + "item elsewhere, and anything left over is thrown on the ground. "
+                        + "Auto Sort has its own switch.")));
 
         add(Component.literal("Check every: " + Config.get().autoSortIntervalTicks + " ticks"), right, y, 150, b -> {
             Config.get().autoSortIntervalTicks = cycle(INTERVALS, Config.get().autoSortIntervalTicks);
@@ -81,7 +84,9 @@ public final class SettingsScreen extends Screen {
         add(Component.literal("Move delay: " + Config.get().operationCooldownTicks + " ticks"), x, y, 150, b -> {
             Config.get().operationCooldownTicks = cycle(COOLDOWNS, Config.get().operationCooldownTicks);
             save();
-        });
+        }).setTooltip(Tooltip.create(Component.literal(
+                "Ticks between inventory actions. A higher delay looks more like manual clicking,"
+                        + " which is safer on strict servers.")));
 
         add(Component.literal("Status messages: " + onOff(Config.get().showStatusMessages)), right, y, 150, b -> {
             Config.get().showStatusMessages = !Config.get().showStatusMessages;
@@ -102,18 +107,49 @@ public final class SettingsScreen extends Screen {
 
         y += row;
 
+        add(Component.literal("Auto Sort drop: " + onOff(Config.get().autoSortDrop)), x, y, 150, b -> {
+            Config.get().autoSortDrop = !Config.get().autoSortDrop;
+            save();
+        }).setTooltip(Tooltip.create(Component.literal(
+                "Lets Auto Sort drop items from slots marked empty too. Careful: anything you "
+                        + "pick up into one of those slots gets thrown right back out.")));
+
         add(Component.literal("Pause in inventory: " + onOff(Config.get().pauseWhileInventoryOpen)),
-                x, y, 310, b -> {
+                right, y, 150, b -> {
                     Config.get().pauseWhileInventoryOpen = !Config.get().pauseWhileInventoryOpen;
                     save();
                 });
 
+        y += row;
+
+        // Quick keys. The same bindings as Options > Controls, so changing one here changes it
+        // there too.
+        keyButton("Apply key", ModKeys.APPLY_ACTIVE, x, y).setTooltip(Tooltip.create(Component.literal(
+                "Applies the active preset (the one you applied last) without opening the menu. "
+                        + "Click, then press a key. Backspace clears it, Escape cancels.")));
+        keyButton("Auto Sort key", ModKeys.TOGGLE_AUTO_SORT, right, y).setTooltip(Tooltip.create(
+                Component.literal("Turns Auto Sort on or off for the active preset. "
+                        + "Click, then press a key. Backspace clears it, Escape cancels.")));
+
         add(Component.literal("Done"), this.width / 2 - 75, this.height - 30, 150, b -> onClose());}
 
-    private void add(Component label, int x, int y, int w, Button.OnPress action) {
-        Button button = Button.builder(label, action).bounds(x, y, w, 20).build();
+    /**
+     * A button showing a key binding. Reads the real binding, the same one Options > Controls
+     * shows and edits, so the two screens can never disagree. Click it, then press a key.
+     */
+    private Button keyButton(String label, KeyMapping key, int x, int y) {
+        String shown = listening == key ? "..." : key.getTranslatedKeyMessage().getString();
+        return add(Component.literal(label + ": " + shown), x, y, 150, b -> {
+            listening = key;
+            rebuild();
+        });
+    }
+
+    private Button add(Component label, int x, int y, int w, Button.OnPress action) {
+        Button button = ThemedButton.create(label, action).bounds(x, y, w, 20).build();
         addRenderableWidget(button);
         themed.add(button);
+        return button;
     }
 
     private void rebuild() {
@@ -128,10 +164,6 @@ public final class SettingsScreen extends Screen {
 
     private static String onOff(boolean b) {
         return b ? "ON" : "OFF";
-    }
-
-    private static String keyName(int code) {
-        return InputConstants.Type.KEYSYM.getOrCreate(code).getDisplayName().getString();
     }
 
     /** Next value in the list, wrapping; falls back to the first if the current value is custom. */
@@ -149,31 +181,39 @@ public final class SettingsScreen extends Screen {
      *
      * <p>Polling the key state each frame instead of overriding {@code keyPressed} is deliberate:
      * the key-event signature changed in 26.x along with the mouse one, and polling reads the same
-     * GLFW state without depending on it. Escape cancels rather than binding, matching vanilla.
+     * GLFW state without depending on it. Escape cancels; Backspace clears the binding.
      */
     private void pollForNewKey() {
         var window = Minecraft.getInstance().getWindow();
 
         if (InputConstants.isKeyDown(window, KEY_ESCAPE)) {
-            listening = false;
+            listening = null;
             rebuild();
+            return;
+        }
+        if (InputConstants.isKeyDown(window, KEY_BACKSPACE)) {
+            bind(InputConstants.UNKNOWN);
             return;
         }
 
         for (int code = FIRST_KEY; code <= LAST_KEY; code++) {
-            if (!InputConstants.isKeyDown(window, code)) {
-                continue;
+            if (InputConstants.isKeyDown(window, code)) {
+                bind(InputConstants.Type.KEYSYM.getOrCreate(code));
+                return;
             }
-            Config.get().openKeyCode = code;
-            // Push it through Minecraft's own key system so it also shows in Options > Controls
-            // and persists in options.txt like any vanilla binding.
-            ModKeys.OPEN_MENU.setKey(InputConstants.Type.KEYSYM.getOrCreate(code));
-            KeyMapping.resetMapping();
-            Minecraft.getInstance().options.save();
-            listening = false;
-            save();
-            return;
         }
+    }
+
+    /**
+     * Sets the key on Minecraft's own binding, exactly as the Controls screen does, and saves
+     * options.txt. There is no separate copy in the mod's config to fall out of step.
+     */
+    private void bind(InputConstants.Key key) {
+        listening.setKey(key);
+        KeyMapping.resetMapping();
+        Minecraft.getInstance().options.save();
+        listening = null;
+        save();
     }
 
     @Override
@@ -182,27 +222,22 @@ public final class SettingsScreen extends Screen {
 
         int accent = Theme.current().accent();
 
-        // Vanilla buttons are textured sprites and cannot be recoloured without a custom widget,
-        // so a low-alpha accent wash tints them while leaving the bevel and hover state intact.
-        int wash = (accent & 0x00FFFFFF) | 0x38000000;
-        for (Button b : themed) {
-            graphics.fill(b.getX(), b.getY(), b.getX() + b.getWidth(), b.getY() + b.getHeight(), wash);
-        }
 
         graphics.text(this.font, "Settings", this.width / 2 - 20, 20, accent, true);
-        graphics.text(this.font,
-                listening
-                        ? "Press any key to bind it, or Escape to cancel."
-                        : "Higher move delay looks more like manual clicking — safer on strict servers.",
-                this.width / 2 - 180, this.height - 48, accent, false);
 
-        if (listening) {
+        if (listening != null) {
             pollForNewKey();
         }
     }
 
     @Override
     public void onClose() {
+        if (listening != null) {
+            // Escape while choosing a key cancels the choice instead of leaving the screen.
+            listening = null;
+            rebuild();
+            return;
+        }
         Storage.saveConfig();
         Minecraft.getInstance().gui.setScreen(parent);
     }
