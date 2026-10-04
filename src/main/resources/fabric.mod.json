@@ -3,7 +3,7 @@
   "id": "inventory-manager-plus",
   "version": "${version}",
   "name": "Inventory Manager+",
-  "description": "Save inventory layouts as presets and apply them with one click. Never drops or deletes items unless you turn on Drop.",
+  "description": "Save inventory layouts as presets and restore them with one click. Nothing is dropped or deleted unless you allow it.",
   "authors": [
     "Syzy3"
   ],
