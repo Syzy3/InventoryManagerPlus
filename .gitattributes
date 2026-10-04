@@ -1,0 +1,11 @@
+# Normalise line endings: text files are stored with LF in the repository.
+* text=auto
+
+# Windows scripts need CRLF, Unix scripts need LF.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+gradlew text eol=lf
+
+# Binary files
+*.png binary
+*.jar binary
