@@ -41,7 +41,7 @@ public final class PresetListScreen extends Screen {
     private final java.util.List<Button> cardButtons = new java.util.ArrayList<>();
 
     public PresetListScreen(Screen parent) {
-        super(Component.literal("Inventory Manager+"));
+        super(Component.literal("InventoryManager+"));
         this.parent = parent;
     }
 
@@ -224,7 +224,7 @@ public final class PresetListScreen extends Screen {
         int accent = Theme.current().accent();
 
 
-        graphics.text(this.font, "Inventory Manager+", this.width / 2 - 60, 16, accent, true);
+        graphics.text(this.font, "InventoryManager+", this.width / 2 - 60, 16, accent, true);
 
         List<Preset> presets = InventoryManagerPlus.presets().all();
         if (presets.isEmpty()) {

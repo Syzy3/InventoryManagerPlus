@@ -43,7 +43,7 @@ public final class SettingsScreen extends Screen {
     private KeyMapping listening;
 
     public SettingsScreen(Screen parent) {
-        super(Component.literal("Inventory Manager+ Settings"));
+        super(Component.literal("InventoryManager+ Settings"));
         this.parent = parent;
     }
 

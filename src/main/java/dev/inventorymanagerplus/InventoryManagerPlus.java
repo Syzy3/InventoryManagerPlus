@@ -25,7 +25,7 @@ import dev.inventorymanagerplus.gui.PauseMenuButton;
 public final class InventoryManagerPlus implements ClientModInitializer {
 
     public static final String MOD_ID = "inventory-manager-plus";
-    public static final Logger LOGGER = LoggerFactory.getLogger("Inventory Manager+");
+    public static final Logger LOGGER = LoggerFactory.getLogger("InventoryManager+");
 
     private static final PresetManager PRESETS = new PresetManager();
     private static final InventoryOps OPS = new InventoryOps();
@@ -54,7 +54,7 @@ public final class InventoryManagerPlus implements ClientModInitializer {
 
         PauseMenuButton.register();
 
-        LOGGER.info("Inventory Manager+ ready");
+        LOGGER.info("InventoryManager+ ready");
     }
 
     private static void onClientTick(Minecraft mc) {

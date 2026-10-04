@@ -1,4 +1,4 @@
-# Inventory Manager+
+# InventoryManager+
 
 A client-side Fabric mod for Minecraft 26.2. Save the layout of your hotbar, inventory, armour and off-hand as a preset, then put everything back in place with one click or a hotkey.
 
@@ -51,7 +51,7 @@ A client-side Fabric mod for Minecraft 26.2. Save the layout of your hotbar, inv
 | Reorder or duplicate | Use the ▲ ▼ and ⧉ buttons on a preset card |
 | Pause Auto Sort | Hold **left Alt** |
 
-All keys can be changed in Options → Controls → Inventory Manager+. The **Apply Active Preset** and **Toggle Auto Sort** keys are unbound by default.
+All keys can be changed in Options → Controls → InventoryManager+. The **Apply Active Preset** and **Toggle Auto Sort** keys are unbound by default.
 
 ### How items are matched
 

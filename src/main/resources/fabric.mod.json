@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "inventory-manager-plus",
   "version": "${version}",
-  "name": "Inventory Manager+",
+  "name": "InventoryManager+",
   "description": "Save inventory layouts as presets and restore them with one click. Nothing is dropped or deleted unless you allow it.",
   "authors": [
     "Syzy3"

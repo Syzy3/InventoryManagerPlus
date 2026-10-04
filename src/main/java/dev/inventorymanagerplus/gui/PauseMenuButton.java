@@ -80,8 +80,8 @@ public final class PauseMenuButton {
 
             ImageButton button = new ImageButton(x, y, SIZE, SIZE, SPRITES,
                     b -> Minecraft.getInstance().gui.setScreen(new PresetListScreen(screen)),
-                    Component.literal("Inventory Manager+"));
-            button.setTooltip(Tooltip.create(Component.literal("Inventory Manager+")));
+                    Component.literal("InventoryManager+"));
+            button.setTooltip(Tooltip.create(Component.literal("InventoryManager+")));
 
             Screens.getWidgets(screen).add(button);
         });

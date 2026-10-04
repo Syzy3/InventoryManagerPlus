@@ -144,7 +144,7 @@ public final class InventoryOps {
             heldFingerprint = Long.MIN_VALUE;
             if (changed && queue.stream().anyMatch(ArrangementPlanner.Move::isDrop)) {
                 cancel();
-                notifyPlayer(player, Component.literal("Inventory Manager+: inventory changed, stopped without dropping anything."));
+                notifyPlayer(player, Component.literal("InventoryManager+: inventory changed, stopped without dropping anything."));
                 return;
             }
         }
@@ -174,7 +174,7 @@ public final class InventoryOps {
                 // Three consecutive failures means the world moved under us — a rejected packet,
                 // a resync, items consumed elsewhere. Stop instead of hammering the server.
                 cancel();
-                notifyPlayer(player, Component.literal("Inventory Manager+: stopped, the server rejected an inventory action."));
+                notifyPlayer(player, Component.literal("InventoryManager+: stopped, the server rejected an inventory action."));
                 return;
             }
         } else {
@@ -184,7 +184,7 @@ public final class InventoryOps {
         cooldown = Math.max(0, Config.get().operationCooldownTicks);
 
         if (queue.isEmpty() && onDrained == null && announceCompletion) {
-            notifyPlayer(player, Component.literal("Inventory Manager+: applied " + label));
+            notifyPlayer(player, Component.literal("InventoryManager+: applied " + label));
         }
     }
 

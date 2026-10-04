@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to Inventory Manager+ are listed here. Version numbers match the versions published on [Modrinth](https://modrinth.com/mod/inventorymanagerplus/versions).
+All notable changes to InventoryManager+ are listed here. Version numbers match the versions published on [Modrinth](https://modrinth.com/mod/inventorymanagerplus/versions).
 
 ## [1.1.0] - 2026-10-04
 
