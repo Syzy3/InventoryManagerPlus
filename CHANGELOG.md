@@ -34,7 +34,7 @@ For Minecraft 26.2, Fabric Loader 0.19.3+, Fabric API.
 - Presets whose first slot is a category now show an icon.
 - An unreadable presets file is backed up to `presets.json.bak` instead of being overwritten.
 
-## [1.0.0] - 2026-08-29
+## [1.0.0] - 2026-08-28
 
 Initial release for Minecraft 26.2.
 
