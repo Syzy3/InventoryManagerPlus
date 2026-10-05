@@ -1,6 +1,7 @@
 package dev.inventorymanagerplus.gui;
 
 import dev.inventorymanagerplus.InventoryManagerPlus;
+import dev.inventorymanagerplus.Keys;
 import dev.inventorymanagerplus.config.Config;
 import dev.inventorymanagerplus.preset.Preset;
 import net.minecraft.client.Minecraft;
@@ -275,7 +276,7 @@ public final class PresetListScreen extends Screen {
         return filled + " item" + (filled == 1 ? "" : "s")
                 + (blanks > 0 ? ", " + blanks + " blank" : "")
                 + (preset.hasHotkey()
-                        ? "  •  Key: " + InputConstants.Type.KEYSYM.getOrCreate(preset.hotkey())
+                        ? "  •  Key: " + Keys.key(preset.hotkey())
                                 .getDisplayName().getString()
                         : "");
     }

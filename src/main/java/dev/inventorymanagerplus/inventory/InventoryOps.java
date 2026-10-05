@@ -349,7 +349,7 @@ public final class InventoryOps {
             return false;
         }
         player.getInventory().setItem(move.from(), ItemStack.EMPTY);
-        player.drop(stack, true);
+        player.drop(stack, true, net.minecraft.util.Prediction.PREDICTED);
         gameMode.handleCreativeModeItemDrop(stack);
         gameMode.handleCreativeModeItemAdd(ItemStack.EMPTY, menuSlot);
         return true;

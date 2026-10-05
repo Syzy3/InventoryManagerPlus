@@ -1,6 +1,8 @@
 package dev.inventorymanagerplus.preset;
 
 import com.google.gson.JsonArray;
+import com.mojang.blaze3d.platform.InputConstants;
+import dev.inventorymanagerplus.Keys;
 import com.google.gson.JsonObject;
 import net.minecraft.resources.Identifier;
 
@@ -22,7 +24,10 @@ public final class Preset {
     private final Map<Integer, PresetSlot> slots;
     private Identifier icon;
     private boolean autoSort;
-    /** Keyboard key (GLFW code) that applies this preset from anywhere in game; -1 for none. */
+    /**
+     * Keyboard key (scancode, see {@link dev.inventorymanagerplus.Keys}) that applies this preset
+     * from anywhere in game; -1 for none.
+     */
     private int hotkey = -1;
 
     public Preset(String id, String name, Map<Integer, PresetSlot> slots,
@@ -120,7 +125,13 @@ public final class Preset {
             o.addProperty("icon", icon.toString());
         }
         if (hotkey >= 0) {
-            o.addProperty("hotkey", hotkey);
+            // Saved as the GLFW code so 26.2 and 26.3 builds can share preset files. The key
+            // name is saved too, for keys that have no GLFW code.
+            int saved = Keys.toSaved(hotkey);
+            if (saved >= 0) {
+                o.addProperty("hotkey", saved);
+            }
+            o.addProperty("hotkeyName", Keys.key(hotkey).getName());
         }
         JsonArray arr = new JsonArray();
         slots.entrySet().stream()
@@ -163,8 +174,15 @@ public final class Preset {
             }
         }
         Preset preset = new Preset(id, name, slots, icon, auto);
-        if (o.has("hotkey")) {
-            preset.setHotkey(o.get("hotkey").getAsInt());
+        int key = o.has("hotkey") ? Keys.fromSaved(o.get("hotkey").getAsInt()) : -1;
+        if (key < 0 && o.has("hotkeyName")) {
+            InputConstants.Key named = InputConstants.getKey(o.get("hotkeyName").getAsString());
+            if (named.getType() == InputConstants.Type.KEYBOARD && named != InputConstants.UNKNOWN) {
+                key = named.getValue();
+            }
+        }
+        if (key >= 0) {
+            preset.setHotkey(key);
         }
         return preset;
     }

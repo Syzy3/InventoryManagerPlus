@@ -2,6 +2,7 @@ package dev.inventorymanagerplus.gui;
 
 import com.google.gson.JsonObject;
 import dev.inventorymanagerplus.InventoryManagerPlus;
+import dev.inventorymanagerplus.Keys;
 import dev.inventorymanagerplus.inventory.InvSlots;
 import dev.inventorymanagerplus.inventory.ItemMatcher;
 import dev.inventorymanagerplus.preset.EnchantCatalog;
@@ -186,15 +187,15 @@ public final class PresetEditorScreen extends Screen {
     /** True while waiting for the player to press this preset's new hotkey. */
     private boolean listeningForHotkey;
 
-    private static final int KEY_ESCAPE = 256;
-    private static final int KEY_BACKSPACE = 259;
+    private static final int KEY_ESCAPE = InputConstants.KEY_ESCAPE;
+    private static final int KEY_BACKSPACE = InputConstants.KEY_BACKSPACE;
 
     private String hotkeyLabel() {
         if (listeningForHotkey) {
             return "Key: ...";
         }
         return "Key: " + (preset.hasHotkey()
-                ? InputConstants.Type.KEYSYM.getOrCreate(preset.hotkey()).getDisplayName().getString()
+                ? Keys.key(preset.hotkey()).getDisplayName().getString()
                 : "None");
     }
 
@@ -203,20 +204,19 @@ public final class PresetEditorScreen extends Screen {
      * buttons, since the key-event signature changed in 26.x. Escape cancels, Backspace clears.
      */
     private void pollHotkey() {
-        var window = Minecraft.getInstance().getWindow();
-        if (InputConstants.isKeyDown(window, KEY_ESCAPE)) {
+        if (Keys.isDown(KEY_ESCAPE)) {
             listeningForHotkey = false;
             rebuild();
             return;
         }
-        if (InputConstants.isKeyDown(window, KEY_BACKSPACE)) {
+        if (Keys.isDown(KEY_BACKSPACE)) {
             preset.setHotkey(-1);
             listeningForHotkey = false;
             rebuild();
             return;
         }
-        for (int code = 32; code <= 348; code++) {
-            if (InputConstants.isKeyDown(window, code)) {
+        for (int code = Keys.FIRST_SCAN; code <= Keys.LAST_SCAN; code++) {
+            if (Keys.isDown(code)) {
                 preset.setHotkey(code);
                 listeningForHotkey = false;
                 // The key is still down; don't let it also count as F-to-clear on this frame.
@@ -233,7 +233,7 @@ public final class PresetEditorScreen extends Screen {
         if (other.isPresent()) {
             return "That key also applies \"" + other.get().name() + "\".";
         }
-        InputConstants.Key key = InputConstants.Type.KEYSYM.getOrCreate(code);
+        InputConstants.Key key = Keys.key(code);
         for (KeyMapping mapping : Minecraft.getInstance().options.keyMappings) {
             if (mapping.matches(key)) {
                 return "That key is also " + Component.translatable(mapping.getName()).getString()
@@ -422,8 +422,8 @@ public final class PresetEditorScreen extends Screen {
                 spec.enchants(), req -> preset.slots().put(slot, spec.withEnchants(req))));
     }
 
-    /** GLFW code for F. */
-    private static final int KEY_F = 70;
+    /** Key code for F. */
+    private static final int KEY_F = InputConstants.KEY_F;
 
     /** True while F is held, so one press clears one slot rather than repeating every frame. */
     private boolean clearKeyHeld;
@@ -432,12 +432,12 @@ public final class PresetEditorScreen extends Screen {
      * Clears whichever slot the mouse is over when F is pressed.
      *
      * <p>Polled rather than handled through {@code keyPressed}, matching SettingsScreen: the
-     * key-event signature changed in 26.x and polling reads the same GLFW state without
+     * key-event signature changed in 26.x and polling reads the same keyboard state without
      * depending on it. The held flag makes this edge-triggered — without it, holding F would
      * clear a slot every frame.
      */
     private void pollClearKey(int mouseX, int mouseY) {
-        boolean down = InputConstants.isKeyDown(Minecraft.getInstance().getWindow(), KEY_F);
+        boolean down = Keys.isDown(KEY_F);
         if (down && !clearKeyHeld && !(nameBox != null && nameBox.isFocused())) {
             int slot = hoveredSlot(mouseX, mouseY);
             if (slot >= 0 && preset.slots().containsKey(slot)) {

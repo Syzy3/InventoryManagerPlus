@@ -113,13 +113,12 @@ public final class InventoryManagerPlus implements ClientModInitializer {
             HELD_HOTKEYS.clear();
             return;
         }
-        var window = mc.getWindow();
         for (Preset preset : PRESETS.all()) {
             if (!preset.hasHotkey()) {
                 continue;
             }
             int key = preset.hotkey();
-            boolean down = com.mojang.blaze3d.platform.InputConstants.isKeyDown(window, key);
+            boolean down = Keys.isDown(key);
             if (down && HELD_HOTKEYS.add(key)) {
                 status(mc, PRESETS.apply(mc, preset, true).getString());
             } else if (!down) {

@@ -31,7 +31,7 @@ public final class ModKeys {
     private static KeyMapping register(String name, int defaultKey) {
         return KeyMappingHelper.registerKeyMapping(new KeyMapping(
                 "key." + InventoryManagerPlus.MOD_ID + "." + name,
-                InputConstants.Type.KEYSYM,
+                InputConstants.Type.KEYBOARD,
                 defaultKey,
                 CATEGORY));
     }

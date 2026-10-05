@@ -1,6 +1,7 @@
 package dev.inventorymanagerplus.gui;
 
 import com.mojang.blaze3d.platform.InputConstants;
+import dev.inventorymanagerplus.Keys;
 import dev.inventorymanagerplus.ModKeys;
 import dev.inventorymanagerplus.config.Config;
 import dev.inventorymanagerplus.config.Storage;
@@ -31,11 +32,8 @@ public final class SettingsScreen extends Screen {
      */
     private static final int[] COOLDOWNS = {1, 2, 4, 6, 10};
 
-    /** GLFW key code range worth scanning while listening for a new binding. */
-    private static final int FIRST_KEY = 32;
-    private static final int LAST_KEY = 348;
-    private static final int KEY_ESCAPE = 256;
-    private static final int KEY_BACKSPACE = 259;
+    private static final int KEY_ESCAPE = InputConstants.KEY_ESCAPE;
+    private static final int KEY_BACKSPACE = InputConstants.KEY_BACKSPACE;
 
     private final Screen parent;
     private final List<Button> themed = new ArrayList<>();
@@ -181,24 +179,22 @@ public final class SettingsScreen extends Screen {
      *
      * <p>Polling the key state each frame instead of overriding {@code keyPressed} is deliberate:
      * the key-event signature changed in 26.x along with the mouse one, and polling reads the same
-     * GLFW state without depending on it. Escape cancels; Backspace clears the binding.
+     * keyboard state without depending on it. Escape cancels; Backspace clears the binding.
      */
     private void pollForNewKey() {
-        var window = Minecraft.getInstance().getWindow();
-
-        if (InputConstants.isKeyDown(window, KEY_ESCAPE)) {
+        if (Keys.isDown(KEY_ESCAPE)) {
             listening = null;
             rebuild();
             return;
         }
-        if (InputConstants.isKeyDown(window, KEY_BACKSPACE)) {
+        if (Keys.isDown(KEY_BACKSPACE)) {
             bind(InputConstants.UNKNOWN);
             return;
         }
 
-        for (int code = FIRST_KEY; code <= LAST_KEY; code++) {
-            if (InputConstants.isKeyDown(window, code)) {
-                bind(InputConstants.Type.KEYSYM.getOrCreate(code));
+        for (int code = Keys.FIRST_SCAN; code <= Keys.LAST_SCAN; code++) {
+            if (Keys.isDown(code)) {
+                bind(Keys.key(code));
                 return;
             }
         }
