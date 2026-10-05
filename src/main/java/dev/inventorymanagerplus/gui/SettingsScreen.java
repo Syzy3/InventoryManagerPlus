@@ -71,8 +71,8 @@ public final class SettingsScreen extends Screen {
             save();
         }).setTooltip(Tooltip.create(Component.literal(
                 "When you apply a preset, items in slots marked empty get stacked onto the same "
-                        + "item elsewhere, and anything left over is thrown on the ground. "
-                        + "Auto Sort has its own switch.")));
+                        + "item elsewhere or moved to a free slot. Only if there's no room left "
+                        + "are they thrown on the ground. Auto Sort has its own switch.")));
 
         add(Component.literal("Check every: " + Config.get().autoSortIntervalTicks + " ticks"), right, y, 150, b -> {
             Config.get().autoSortIntervalTicks = cycle(INTERVALS, Config.get().autoSortIntervalTicks);
@@ -111,8 +111,9 @@ public final class SettingsScreen extends Screen {
             Config.get().autoSortDrop = !Config.get().autoSortDrop;
             save();
         }).setTooltip(Tooltip.create(Component.literal(
-                "Lets Auto Sort drop items from slots marked empty too. Careful: anything you "
-                        + "pick up into one of those slots gets thrown right back out.")));
+                "Lets Auto Sort drop items from slots marked empty too, when there's no free "
+                        + "slot to move them to. Careful: with a full inventory, anything you pick "
+                        + "up into one of those slots gets thrown right back out.")));
 
         add(Component.literal("Pause in inventory: " + onOff(Config.get().pauseWhileInventoryOpen)),
                 right, y, 150, b -> {

@@ -61,7 +61,7 @@ A slot matches by item type. Any diamond sword counts as "diamond sword". Durabi
 
 Items only ever move between slots of your own inventory. The mod does not drop, delete or destroy items, including when your inventory is full, a preset can't be completed, or you close a screen partway through.
 
-The one exception is the **Drop** setting, which is off by default. With it on, applying a preset throws out anything left in slots marked empty, after first trying to stack it onto the same item elsewhere. Auto Sort only drops items if **Auto Sort drop** is also turned on.
+The one exception is the **Drop** setting, which is off by default. With it on, applying a preset throws out items in slots marked empty, but only after first trying to stack them onto the same item elsewhere and then trying to move them to a free slot. Auto Sort only drops items if **Auto Sort drop** is also turned on.
 
 Every action is a normal inventory click that the server sees and approves. Nothing is faked on the client.
 

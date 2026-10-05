@@ -37,16 +37,16 @@ public final class Config {
     // ---- Behaviour -------------------------------------------------------------------------
 
     /**
-     * When applying a preset, items sitting in a slot marked empty are thrown on the ground
-     * (after first being stacked onto the same item elsewhere) instead of being moved to a free
-     * slot. Applies to Apply only; Auto Sort has its own switch below.
+     * When applying a preset, items sitting in a slot marked empty that can't be stacked onto
+     * the same item or moved to a free slot are thrown on the ground instead of being left where
+     * they are. Applies to Apply only; Auto Sort has its own switch below.
      */
     public boolean dropFromEmptySlots = false;
 
     /**
-     * The same drop behaviour for Auto Sort. Separate and off by default: new pickups land in the
-     * first free slot, so if that slot is marked empty the item is thrown, picked back up and
-     * thrown again for as long as the player stands on it.
+     * The same drop behaviour for Auto Sort. Separate and off by default: with a full inventory,
+     * a pickup that lands in a slot marked empty is thrown, picked back up and thrown again for
+     * as long as the player stands on it.
      */
     public boolean autoSortDrop = false;
 
