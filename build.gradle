@@ -9,7 +9,8 @@ version = project.mod_version
 group = project.maven_group
 
 base {
-	archivesName = project.archives_base_name
+	// Jar name: inventory-manager-plus<minecraft version>-<mod version>.jar
+	archivesName = "${project.archives_base_name}${project.minecraft_version}"
 }
 
 repositories {
