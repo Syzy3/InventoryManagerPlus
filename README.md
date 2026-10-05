@@ -1,6 +1,6 @@
 # InventoryManager+
 
-A client-side Fabric mod for Minecraft 26.3. Save the layout of your hotbar, inventory, armour and off-hand as a preset, then put everything back in place with one click or a hotkey.
+A client-side Fabric mod for Minecraft 26.2 and 26.3. Save the layout of your hotbar, inventory, armour and off-hand as a preset, then put everything back in place with one click or a hotkey.
 
 [Download on Modrinth](https://modrinth.com/mod/inventorymanagerplus)
 
@@ -11,8 +11,8 @@ A client-side Fabric mod for Minecraft 26.3. Save the layout of your hotbar, inv
 
 | | |
 |---|---|
-| Minecraft | 26.3 |
-| Fabric Loader | 0.19.5 or newer |
+| Minecraft | 26.2 or 26.3 (download the file for your version) |
+| Fabric Loader | 0.19.3 or newer (26.2), 0.19.5 or newer (26.3) |
 | Fabric API | Required |
 | Mod Menu | Optional (adds a config button to the mod list) |
 | Java | 25 |
@@ -20,9 +20,9 @@ A client-side Fabric mod for Minecraft 26.3. Save the layout of your hotbar, inv
 
 ## Installation
 
-1. Install [Fabric Loader](https://fabricmc.net/use/) for Minecraft 26.3.
+1. Install [Fabric Loader](https://fabricmc.net/use/) for your Minecraft version.
 2. Put [Fabric API](https://modrinth.com/mod/fabric-api) in your `mods` folder.
-3. Download the latest version from [Modrinth](https://modrinth.com/mod/inventorymanagerplus) and put it in your `mods` folder.
+3. Download the latest version for your Minecraft version from [Modrinth](https://modrinth.com/mod/inventorymanagerplus) and put it in your `mods` folder.
 
 ## Features
 
