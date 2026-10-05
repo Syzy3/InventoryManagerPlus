@@ -40,8 +40,8 @@ import java.util.TreeMap;
  *   <li><b>Top up.</b> Each filled slot takes more of the same item from unlocked stacks until it
  *       is full.</li>
  *   <li><b>Honour "keep empty".</b> Whatever sits in a slot marked empty is first stacked onto the
- *       same item elsewhere; the rest is dropped (Drop on) or moved to a free slot. With no free
- *       slot it stays put.</li>
+ *       same item elsewhere, then moved to a free slot the preset doesn't use. Only when there is
+ *       no such slot is it dropped (Drop on) or, with Drop off, left where it is.</li>
  * </ol>
  *
  * <p>Each pass locks its target before moving on, so a later step never undoes an earlier one,
@@ -117,7 +117,8 @@ public final class ArrangementPlanner {
     /**
      * @param inventory snapshot of inventory indices 0..40; the array is copied, not mutated
      * @param dropFromEmptySlots whether items left in a slot marked empty are thrown out, after
-     *                           first being stacked onto the same item elsewhere
+     *                           first being stacked onto the same item elsewhere and then moved
+     *                           to a free slot if there is one
      */
     public static Plan plan(ItemStack[] inventory, Preset preset, boolean dropFromEmptySlots) {
         final ItemStack[] sim = inventory.clone();
@@ -209,6 +210,16 @@ public final class ArrangementPlanner {
                 continue;
             }
 
+            // Then move it to a free slot the preset doesn't use. Dropping is only the last
+            // resort, for when every free slot is either taken or marked empty too.
+            int free = findFreeSlot(sim, locked, managed);
+            if (free >= 0) {
+                moves.add(new Move(target, free));
+                swap(sim, target, free);
+                locked.add(target);
+                continue;
+            }
+
             if (dropFromEmptySlots) {
                 moves.add(Move.drop(target));
                 sim[target] = ItemStack.EMPTY;
@@ -216,16 +227,9 @@ public final class ArrangementPlanner {
                 continue;
             }
 
-            int free = findFreeSlot(sim, locked, managed);
-            if (free < 0) {
-                // Inventory is full and every free slot is spoken for. Leaving the item where it
-                // is, is the only non-destructive option.
-                blockedBlanks.add(target);
-                continue;
-            }
-            moves.add(new Move(target, free));
-            swap(sim, target, free);
-            locked.add(target);
+            // Inventory is full and every free slot is spoken for. Leaving the item where it is,
+            // is the only non-destructive option.
+            blockedBlanks.add(target);
         }
 
         return new Plan(List.copyOf(moves), List.copyOf(missing), List.copyOf(blockedBlanks));

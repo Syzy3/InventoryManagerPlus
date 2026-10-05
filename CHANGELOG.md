@@ -2,6 +2,11 @@
 
 All notable changes to InventoryManager+ are listed here. Version numbers match the versions published on [Modrinth](https://modrinth.com/mod/inventorymanagerplus/versions).
 
+## [Unreleased]
+
+### Changed
+- **Drop** and **Auto Sort drop** now move items out of keep-empty slots into a free slot first. Items are only thrown out when there's no free slot left (slots marked empty don't count as free).
+
 ## [1.1.0] - 2026-10-04
 
 For Minecraft 26.2, Fabric Loader 0.19.3+, Fabric API.
