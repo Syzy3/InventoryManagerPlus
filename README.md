@@ -2,7 +2,7 @@
 
 A client-side Fabric mod for Minecraft 26.2 and 26.3. Save the layout of your hotbar, inventory, armour and off-hand as a preset, then put everything back in place with one click or a hotkey.
 
-[Download on Modrinth](https://modrinth.com/mod/inventorymanagerplus)
+[Download on Modrinth](https://modrinth.com/mod/inventorymanagerplus) · [YouTube](https://www.youtube.com/@KineticModsOfficial)
 
 > [!WARNING]
 > **Check a server's rules before using this mod on it.** Many servers, especially PvP, minigame and competitive servers, ban inventory sorting and auto-arranging mods, and their anticheat may flag the fast inventory clicks this mod makes. You can be kicked or banned for using it where it isn't allowed. If you are unsure, ask the server's staff first. Use it on servers at your own risk. The author is not responsible for any punishment.
@@ -87,7 +87,12 @@ Presets and settings are saved in `config/inventory-manager-plus/`.
 
 The mod is only distributed through [Modrinth](https://modrinth.com/mod/inventorymanagerplus). Download it there or through the Modrinth app. No jars are published on GitHub.
 
-Version numbers match between GitHub and Modrinth. Each version is tagged in this repository (for example `v1.0.0`), and its changelog is on the [Releases](../../releases) page and in [CHANGELOG.md](CHANGELOG.md).
+Version numbers match between GitHub and Modrinth. On Modrinth each Minecraft version has its own entry with the Minecraft version added (for example `1.1.1+26.2` and `1.1.1+26.3`). Each version is tagged in this repository (for example `v1.0.0`), and its changelog is on the [Releases](../../releases) page and in [CHANGELOG.md](CHANGELOG.md).
+
+## Links
+
+- 📦 [Modrinth](https://modrinth.com/mod/inventorymanagerplus)
+- 📺 [KineticMods on YouTube](https://www.youtube.com/@KineticModsOfficial)
 
 ## License
 
