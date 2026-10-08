@@ -91,7 +91,7 @@ public final class KineticScreen extends Screen {
 
         for (int i = 0; i < entries.size(); i++) {
             Entry entry = entries.get(i);
-            Button settings = KineticStyle.button(Component.literal("Settings"), b -> openSettings(entry))
+            Button settings = KineticStyle.button(Component.literal("Open"), b -> openSettings(entry))
                     .bounds(left + CARD_WIDTH - 70, 0, 62, 20).build();
             if (entry.settings() == null) {
                 settings.active = false;
@@ -146,6 +146,14 @@ public final class KineticScreen extends Screen {
         }
     }
 
+    /** The text cut to fit {@code width}, ending in "..." when it was too long. */
+    private String fit(String text, int width) {
+        if (this.font.width(text) <= width) {
+            return text;
+        }
+        return this.font.plainSubstrByWidth(text, width - this.font.width("...")).stripTrailing() + "...";
+    }
+
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double dx, double dy) {
         if (mouseY >= LIST_TOP && mouseY < listBottom()) {
@@ -192,9 +200,8 @@ public final class KineticScreen extends Screen {
             int textX = left + 10;
             int textWidth = CARD_WIDTH - 90;
             String title = entry.name() + "  v" + entry.version();
-            graphics.text(this.font, this.font.plainSubstrByWidth(title, textWidth), textX, top + 9, TEXT, true);
-            graphics.text(this.font, this.font.plainSubstrByWidth(entry.description(), textWidth),
-                    textX, top + 25, MUTED, false);
+            graphics.text(this.font, fit(title, textWidth), textX, top + 9, TEXT, true);
+            graphics.text(this.font, fit(entry.description(), textWidth), textX, top + 25, MUTED, false);
         }
         graphics.disableScissor();
 
