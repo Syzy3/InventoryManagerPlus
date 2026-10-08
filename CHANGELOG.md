@@ -2,6 +2,15 @@
 
 All notable changes to InventoryManager+ are listed here. Version numbers match the versions published on [Modrinth](https://modrinth.com/mod/inventorymanagerplus/versions).
 
+## [1.1.3] - 2026-10-07
+
+For Minecraft 26.2 (Fabric Loader 0.19.3+) and Minecraft 26.3 (Fabric Loader 0.19.5+), Fabric API. Each Minecraft version has its own download.
+
+### Changed
+- The buttons on the Kinetic screen now say **Open**.
+- Long mod names and descriptions on the Kinetic screen end in "..." instead of being cut off.
+- With several Kinetic mods installed, the newest Kinetic screen is used.
+
 ## [1.1.2] - 2026-10-07
 
 For Minecraft 26.2 (Fabric Loader 0.19.3+) and Minecraft 26.3 (Fabric Loader 0.19.5+), Fabric API. Each Minecraft version has its own download.
