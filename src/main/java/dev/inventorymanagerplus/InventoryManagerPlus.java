@@ -13,7 +13,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import dev.inventorymanagerplus.gui.PauseMenuButton;
+import dev.inventorymanagerplus.kinetic.KineticButton;
 
 /**
  * Client entry point.
@@ -52,7 +52,7 @@ public final class InventoryManagerPlus implements ClientModInitializer {
 
         ClientTickEvents.END_CLIENT_TICK.register(InventoryManagerPlus::onClientTick);
 
-        PauseMenuButton.register();
+        KineticButton.register();
 
         LOGGER.info("InventoryManager+ ready");
     }

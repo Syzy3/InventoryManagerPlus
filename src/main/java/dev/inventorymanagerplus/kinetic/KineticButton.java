@@ -1,4 +1,4 @@
-package dev.inventorymanagerplus.gui;
+package dev.inventorymanagerplus.kinetic;
 
 import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
 import net.fabricmc.fabric.api.client.screen.v1.Screens;
@@ -15,19 +15,23 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Adds a 20x20 icon button to the row of small buttons on the pause screen.
+ * The Kinetic button on the pause screen: a 20x20 icon in the row of small buttons that opens
+ * {@link KineticScreen}.
  *
- * <p>Rather than hardcoding the row's position (which moves between versions), this finds the
- * existing 20x20 buttons near the centre of the screen, shifts them left to make room, and puts
- * ours on the end so the row stays centred.
+ * <p>Every Kinetic mod carries its own copy of this class (in its own package), so any one of
+ * them works alone. When several are installed, only the first to run adds the button: the
+ * others find a widget already labelled {@link #LABEL} and stop.
  */
-public final class PauseMenuButton {
+public final class KineticButton {
+
+    /** Shared by every Kinetic mod's copy. Changing it would give players duplicate buttons. */
+    public static final String LABEL = "Kinetic";
 
     private static final String MOD_ID = "inventory-manager-plus";
 
     private static final WidgetSprites SPRITES = new WidgetSprites(
-            Identifier.fromNamespaceAndPath(MOD_ID, "icon"),
-            Identifier.fromNamespaceAndPath(MOD_ID, "icon-highlighted"));
+            Identifier.fromNamespaceAndPath(MOD_ID, "kinetic"),
+            Identifier.fromNamespaceAndPath(MOD_ID, "kinetic-highlighted"));
 
     /** Half-width of the centre region, used to ignore the button column on the right edge. */
     private static final int CENTRE_REGION = 120;
@@ -35,7 +39,7 @@ public final class PauseMenuButton {
     private static final int SIZE = 20;
     private static final int GAP = 4;
 
-    private PauseMenuButton() {
+    private KineticButton() {
     }
 
     public static void register() {
@@ -44,12 +48,19 @@ public final class PauseMenuButton {
                 return;
             }
 
+            List<AbstractWidget> widgets = Screens.getWidgets(screen);
+            for (AbstractWidget widget : widgets) {
+                if (LABEL.equals(widget.getMessage().getString())) {
+                    return; // another Kinetic mod already added it
+                }
+            }
+
             int centreX = scaledWidth / 2;
             List<AbstractWidget> row = new ArrayList<>();
             int rowY = -1;
             int rowRight = Integer.MIN_VALUE;
 
-            for (AbstractWidget widget : Screens.getWidgets(screen)) {
+            for (AbstractWidget widget : widgets) {
                 if (widget.getWidth() != SIZE || widget.getHeight() != SIZE) {
                     continue;
                 }
@@ -79,11 +90,11 @@ public final class PauseMenuButton {
             }
 
             ImageButton button = new ImageButton(x, y, SIZE, SIZE, SPRITES,
-                    b -> Minecraft.getInstance().gui.setScreen(new PresetListScreen(screen)),
-                    Component.literal("InventoryManager+"));
-            button.setTooltip(Tooltip.create(Component.literal("InventoryManager+")));
+                    b -> Minecraft.getInstance().gui.setScreen(new KineticScreen(screen)),
+                    Component.literal(LABEL));
+            button.setTooltip(Tooltip.create(Component.literal(LABEL)));
 
-            Screens.getWidgets(screen).add(button);
+            widgets.add(button);
         });
     }
 }
