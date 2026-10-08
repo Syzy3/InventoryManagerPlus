@@ -35,6 +35,9 @@
       "links": {
         "inventory-manager-plus.modmenu.releases": "https://github.com/Syzy3/InventoryManagerPlus/releases"
       }
+    },
+    "kinetic": {
+      "settings": "dev.inventorymanagerplus.kinetic.KineticSettings#open"
     }
   }
 }
