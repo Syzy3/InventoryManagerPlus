@@ -41,7 +41,7 @@ A client-side Fabric mod for Minecraft 26.2 and 26.3. Save the layout of your ho
 
 | Action | How |
 |---|---|
-| Open the menu | Press **Z**, or use the button on the pause screen |
+| Open the menu | Press **Z**, or click the Kinetic (**K**) button on the pause screen and then **Settings** next to InventoryManager+ |
 | Create a preset | **New Preset**, then **Capture Hotbar** or **Capture Inventory**, name it, **Save Preset** |
 | Apply a preset | Click it in the menu, or press its hotkey |
 | Set a slot | Click it to copy from your inventory, or switch to **Browse items** to pick any item |
@@ -87,7 +87,7 @@ Presets and settings are saved in `config/inventory-manager-plus/`.
 
 The mod is only distributed through [Modrinth](https://modrinth.com/mod/inventorymanagerplus). Download it there or through the Modrinth app. No jars are published on GitHub.
 
-Version numbers match between GitHub and Modrinth. On Modrinth each Minecraft version has its own entry with the Minecraft version added (for example `1.1.1+26.2` and `1.1.1+26.3`). Each version is tagged in this repository (for example `v1.0.0`), and its changelog is on the [Releases](../../releases) page and in [CHANGELOG.md](CHANGELOG.md).
+Version numbers match between GitHub and Modrinth. On Modrinth each Minecraft version has its own entry with the Minecraft version added (for example `1.1.2+26.2` and `1.1.2+26.3`). Each version is tagged in this repository (for example `v1.0.0`), and its changelog is on the [Releases](../../releases) page and in [CHANGELOG.md](CHANGELOG.md).
 
 ## Links
 
